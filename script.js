@@ -1,135 +1,128 @@
-let chart, chartTimer = null;
-let currentSensorKey = null;
-let chartLabel = '', chartUnit = '';
-let mode = 'realtime'; // 'realtime' | 'history'
+const sensors = [
+  { key: 'temp', name: 'Nhiệt độ', value: 28, unit: '°C' },
+  { key: 'hum', name: 'Độ ẩm', value: 70, unit: '%' },
+  { key: 'press', name: 'Áp suất', value: 1.01, unit: 'atm' },
+  { key: 'light', name: 'Ánh sáng', value: 500, unit: 'lux' }
+];
 
-function openChart(label, unit, sensorKey) {
-  chartLabel = label; chartUnit = unit; currentSensorKey = sensorKey;
-  document.getElementById('chartTitle').innerText = `${label} (${unit})`;
-  document.getElementById('chartModal').style.display = 'block';
-  document.getElementById('historyPanel').classList.add('hidden');
-  mode = 'realtime';
+const dash = document.getElementById('dashboard');
+sensors.forEach(s => {
+  const card = document.createElement('div');
+  card.className = 'sensor-card';
+  card.innerHTML = `
+    <h3>${s.name}</h3>
+    <p><strong>${s.value}</strong> ${s.unit}</p>
+  `;
+  card.onclick = () => openModal(s.key);
+  dash.appendChild(card);
+});
+
+let chart = null;
+let currentSensorKey = null;
+let chartTimer = null;
+let mode = 'realtime';
+
+function openModal(sensorKey) {
+  currentSensorKey = sensorKey;
+  document.getElementById('chartModal').classList.add('active');
+  document.getElementById('historyPanel').classList.remove('active');
   initChart();
   startRealtime();
 }
 
-function closeChart() {
+function closeModal() {
   stopRealtime();
-  if (chart) chart.destroy();
-  document.getElementById('chartModal').style.display = 'none';
+  document.getElementById('chartModal').classList.remove('active');
 }
 
 function initChart() {
-  const ctx = document.getElementById('realtimeChart').getContext('2d');
+  const ctx = document.getElementById('sensorChart').getContext('2d');
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: 'line',
-    data: { labels: [], datasets: [{ label: chartLabel, data: [], borderWidth: 2, tension: 0.2 }] },
+    data: {
+      labels: [],
+      datasets: [{
+        label: currentSensorKey,
+        data: [],
+        borderWidth: 2,
+        fill: false
+      }]
+    },
     options: {
       animation: false,
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: 'Thời gian' } },
-        y: { title: { display: true, text: chartUnit } }
-      },
-      plugins: { legend: { display: false } }
+      scales: { x: { display: true }, y: { beginAtZero: false } }
     }
   });
 }
 
-/* ---------- Realtime ---------- */
 function startRealtime() {
   stopRealtime();
   mode = 'realtime';
+  console.log('Bắt đầu realtime cho', currentSensorKey);
   document.getElementById('btnRealtime').disabled = true;
   chartTimer = setInterval(() => {
     const now = new Date();
     const label = now.toLocaleTimeString();
-    const v = simulateLiveValue(currentSensorKey); // TODO: thay bằng dữ liệu thật
-    pushPoint(label, v, 60); // giữ tối đa 60 điểm
+    const v = simulateLiveValue(currentSensorKey);
+    pushPoint(label, v, 60);
   }, 1000);
 }
+
 function stopRealtime() {
-  if (chartTimer) { clearInterval(chartTimer); chartTimer = null; }
+  clearInterval(chartTimer);
   document.getElementById('btnRealtime').disabled = false;
 }
-function pushPoint(label, value, maxPoints=120) {
-  const ds = chart.data.datasets[0];
+
+function pushPoint(label, value, maxPoints) {
   chart.data.labels.push(label);
-  ds.data.push(Number(value));
-  if (ds.data.length > maxPoints) {
-    ds.data.shift(); chart.data.labels.shift();
+  chart.data.datasets[0].data.push(value);
+  if (chart.data.labels.length > maxPoints) {
+    chart.data.labels.shift();
+    chart.data.datasets[0].data.shift();
   }
   chart.update();
 }
 
-/* ---------- History ---------- */
-function toggleHistoryPanel() {
-  const p = document.getElementById('historyPanel');
-  p.classList.toggle('hidden');
-  if (!p.classList.contains('hidden')) {
-    // đang mở panel lịch sử -> tạm dừng realtime
-    stopRealtime();
-    mode = 'history';
-  }
+function simulateLiveValue(key) {
+  const base = { temp: 28, hum: 70, press: 1.01, light: 500 }[key] || 0;
+  return base + (Math.random() * 2 - 1);
 }
-function switchToRealtime() {
-  document.getElementById('historyPanel').classList.add('hidden');
-  initChart();
+
+document.getElementById('btnRealtime').onclick = () => {
+  document.getElementById('historyPanel').classList.remove('active');
   startRealtime();
-}
-async function loadHistory() {
+};
+document.getElementById('btnHistory').onclick = () => {
+  stopRealtime();
+  document.getElementById('historyPanel').classList.toggle('active');
+};
+
+function loadHistory() {
   const fromStr = document.getElementById('fromTime').value;
-  const toStr   = document.getElementById('toTime').value;
-  if (!fromStr || !toStr) { alert('Chọn đầy đủ thời gian Từ/Đến'); return; }
-
+  const toStr = document.getElementById('toTime').value;
+  console.log('Tải lịch sử', fromStr, toStr);
+  if (!fromStr || !toStr) { alert('Chọn đầy đủ thời gian'); return; }
   const from = new Date(fromStr);
-  const to   = new Date(toStr);
-  if (to <= from) { alert('Thời gian Đến phải lớn hơn Từ'); return; }
-
+  const to = new Date(toStr);
+  if (to <= from) { alert('Thời gian không hợp lệ'); return; }
   stopRealtime();
   mode = 'history';
   initChart();
-
-  // Lấy dữ liệu lịch sử (demo sinh dữ liệu giả đều mỗi phút).
-  // => Đổi hàm fetchHistory() để gọi API thật của bạn.
-  const points = await fetchHistory(currentSensorKey, from, to);
-
-  chart.data.labels = points.map(p => new Date(p.ts).toLocaleString());
-  chart.data.datasets[0].data = points.map(p => p.value);
-  chart.update();
+  fetchHistory(currentSensorKey, from, to).then(points => {
+    chart.data.labels = points.map(p => new Date(p.ts).toLocaleString());
+    chart.data.datasets[0].data = points.map(p => p.value);
+    chart.update();
+  });
 }
 
-/* ---- Chỗ này thay bằng API thật của bạn ----
-   Ví dụ API GET: /api/history?sensor=oxy&from=ISO&to=ISO
-   Trả về [{ts: "2025-08-29T09:00:00Z", value: 5.6}, ...]
-*/
-async function fetchHistory(sensorKey, from, to) {
-  // --- DEMO: tạo dữ liệu giả mỗi phút ---
-  const msStep = 60 * 1000; // 1 phút
-  const out = [];
-  for (let t = from.getTime(); t <= to.getTime(); t += msStep) {
-    out.push({ ts: new Date(t).toISOString(), value: simulateHistoryValue(sensorKey, t) });
-  }
-  return out;
-
-  /* --- Dùng API thật (ví dụ):
-  const url = `/api/history?sensor=${encodeURIComponent(sensorKey)}&from=${from.toISOString()}&to=${to.toISOString()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Fetch history failed');
-  return await res.json();
-  */
-}
-
-/* ---------- Demo tạo dữ liệu ---------- */
-function simulateLiveValue(key) {
-  const base = { oxy1: 30, oxy2: 0, oxy: 5.5, vac: 0, air4: 0, air7: 10 }[key] ?? 0;
-  return (base + (Math.sin(Date.now()/2000)+Math.random()*0.3)).toFixed(2);
-}
-function simulateHistoryValue(key, ts) {
-  const base = { oxy1: 30, oxy2: 0, oxy: 5.5, vac: 0, air4: 0, air7: 10 }[key] ?? 0;
-  const x = Math.sin(ts/300000) * 0.8 + Math.cos(ts/700000) * 0.4; // biến thiên chậm
-  const noise = (Math.random()-0.5)*0.2;
-  return +(base + x + noise).toFixed(2);
+function fetchHistory(key, from, to) {
+  return new Promise(resolve => {
+    const points = [];
+    const step = 60000; // 1 phút
+    for (let t = from.getTime(); t <= to.getTime(); t += step) {
+      points.push({ ts: t, value: simulateLiveValue(key) });
+    }
+    resolve(points);
+  });
 }
