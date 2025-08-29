@@ -91,10 +91,26 @@ function loadHistory() {
     alert('Vui lòng chọn cả thời gian bắt đầu và kết thúc.');
     return;
   }
-  // Giả lập số điểm dựa trên khoảng cách thời gian (thực tế gọi API để lấy dữ liệu)
-  const points = 30; // bạn có thể tính theo thời gian thực
-  createChart(getRandomData(points), chartUnit);
+
+  const startTime = new Date(start);
+  const endTime = new Date(end);
+  const diffMs = endTime - startTime;
+
+  if (diffMs <= 0) {
+    alert('Thời gian kết thúc phải sau thời gian bắt đầu.');
+    return;
+  }
+
+  // Giả sử lấy 1 điểm mỗi phút
+  const diffMinutes = Math.floor(diffMs / 60000);
+  let points = diffMinutes;
+  if (points < 5) points = 5;        // ít nhất 5 điểm để biểu đồ không bị trống
+  if (points > 200) points = 200;    // giới hạn 200 điểm để không nặng máy
+
+  const data = getRandomData(points);
+  createChart(data, chartUnit);
 }
+
 
 // Đóng modal khi click ngoài
 window.onclick = function(event) {
