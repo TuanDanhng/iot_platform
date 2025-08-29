@@ -44,19 +44,12 @@ function startRealtimeChart() {
     data.push((Math.random() * 100).toFixed(2));
     if (data.length > 20) data.shift();
     updateChart(data);
-    updateDashboardValues(); // <-- thêm dòng này
+
   }, 1000);
 
 }
 
-function updateDashboardValues() {
-  document.getElementById("oxy1").textContent = (Math.random() * 100).toFixed(2);
-  document.getElementById("oxy2").textContent = (Math.random() * 100).toFixed(2);
-  document.getElementById("oxy").textContent = (Math.random() * 10).toFixed(2);
-  document.getElementById("vac").textContent = (Math.random() * 1).toFixed(2);
-  document.getElementById("air4").textContent = (Math.random() * 0.1).toFixed(2);
-  document.getElementById("air7").textContent = (Math.random() * 10).toFixed(2);
-}
+
 
 function createChart(data, unit) {
   const ctx = document.getElementById('realtimeChart').getContext('2d');
@@ -130,4 +123,14 @@ window.onclick = function (event) {
     closeChart();
   }
 };
-
+function updateDashboardValues() {
+  document.getElementById("oxy1").textContent = (Math.random() * 100).toFixed(2);
+  document.getElementById("oxy2").textContent = (Math.random() * 100).toFixed(2);
+  document.getElementById("oxy").textContent  = (Math.random() * 10).toFixed(2);
+  document.getElementById("vac").textContent  = (Math.random() * 1).toFixed(2);
+  document.getElementById("air4").textContent = (Math.random() * 0.1).toFixed(2);
+  document.getElementById("air7").textContent = (Math.random() * 10).toFixed(2);
+}
+window.onload = function() {
+  setInterval(updateDashboardValues, 1000);
+};
