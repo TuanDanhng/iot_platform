@@ -135,6 +135,7 @@ function updateDashboardValues() {
 }
 
 // Khi tải trang, chạy cập nhật giá trị dashboard liên tục
-window.onload = function() {
-  setInterval(updateDashboardValues, 1000);
-};
+window.addEventListener("load", function() {
+  updateDashboardValues(); // gọi ngay 1 lần để có dữ liệu ban đầu
+  setInterval(updateDashboardValues, 1000); // lặp lại mỗi giây
+});
