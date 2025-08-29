@@ -1,128 +1,103 @@
-const sensors = [
-  { key: 'temp', name: 'Nhiệt độ', value: 28, unit: '°C' },
-  { key: 'hum', name: 'Độ ẩm', value: 70, unit: '%' },
-  { key: 'press', name: 'Áp suất', value: 1.01, unit: 'atm' },
-  { key: 'light', name: 'Ánh sáng', value: 500, unit: 'lux' }
-];
-
-const dash = document.getElementById('dashboard');
-sensors.forEach(s => {
-  const card = document.createElement('div');
-  card.className = 'sensor-card';
-  card.innerHTML = `
-    <h3>${s.name}</h3>
-    <p><strong>${s.value}</strong> ${s.unit}</p>
-  `;
-  card.onclick = () => openModal(s.key);
-  dash.appendChild(card);
-});
-
 let chart = null;
-let currentSensorKey = null;
-let chartTimer = null;
-let mode = 'realtime';
+let chartLabel = '';
+let chartUnit = '';
+let mode = 'realtime'; 
+let realtimeInterval = null;
 
-function openModal(sensorKey) {
-  currentSensorKey = sensorKey;
-  document.getElementById('chartModal').classList.add('active');
-  document.getElementById('historyPanel').classList.remove('active');
-  initChart();
-  startRealtime();
+function openChart(label, unit) {
+  document.getElementById('chartModal').style.display = 'block';
+  document.getElementById('chartTitle').innerText = label;
+  chartLabel = label;
+  chartUnit = unit;
+
+  mode = 'realtime'; // mặc định khi mở
+  document.querySelector('input[value="realtime"]').checked = true;
+  document.getElementById('timeRangeBox').style.display = 'none';
+
+  startRealtimeChart();
 }
 
-function closeModal() {
-  stopRealtime();
-  document.getElementById('chartModal').classList.remove('active');
+function closeChart() {
+  document.getElementById('chartModal').style.display = 'none';
+  if (chart) chart.destroy();
+  if (realtimeInterval) clearInterval(realtimeInterval);
 }
 
-function initChart() {
-  const ctx = document.getElementById('sensorChart').getContext('2d');
+function switchMode() {
+  mode = document.querySelector('input[name="mode"]:checked').value;
+  if (mode === 'realtime') {
+    document.getElementById('timeRangeBox').style.display = 'none';
+    startRealtimeChart();
+  } else {
+    document.getElementById('timeRangeBox').style.display = 'block';
+    if (realtimeInterval) clearInterval(realtimeInterval);
+    createChart(getRandomData(10), chartUnit);
+  }
+}
+
+function startRealtimeChart() {
+  if (realtimeInterval) clearInterval(realtimeInterval);
+  let data = getRandomData(10);
+  createChart(data, chartUnit);
+
+  realtimeInterval = setInterval(() => {
+    data.push((Math.random() * 100).toFixed(2));
+    if (data.length > 20) data.shift();
+    updateChart(data);
+  }, 1000);
+}
+
+function createChart(data, unit) {
+  const ctx = document.getElementById('realtimeChart').getContext('2d');
   if (chart) chart.destroy();
   chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: [],
+      labels: Array.from({length: data.length}, (_, i) => i + 1),
       datasets: [{
-        label: currentSensorKey,
-        data: [],
-        borderWidth: 2,
-        fill: false
+        label: chartLabel + ' (' + unit + ')',
+        data: data,
+        borderColor: 'blue',
+        fill: false,
+        tension: 0.1
       }]
     },
     options: {
+      responsive: true,
       animation: false,
-      scales: { x: { display: true }, y: { beginAtZero: false } }
+      scales: {
+        x: { title: { display: true, text: 'Thời gian' } },
+        y: { title: { display: true, text: unit } }
+      }
     }
   });
 }
 
-function startRealtime() {
-  stopRealtime();
-  mode = 'realtime';
-  console.log('Bắt đầu realtime cho', currentSensorKey);
-  document.getElementById('btnRealtime').disabled = true;
-  chartTimer = setInterval(() => {
-    const now = new Date();
-    const label = now.toLocaleTimeString();
-    const v = simulateLiveValue(currentSensorKey);
-    pushPoint(label, v, 60);
-  }, 1000);
-}
-
-function stopRealtime() {
-  clearInterval(chartTimer);
-  document.getElementById('btnRealtime').disabled = false;
-}
-
-function pushPoint(label, value, maxPoints) {
-  chart.data.labels.push(label);
-  chart.data.datasets[0].data.push(value);
-  if (chart.data.labels.length > maxPoints) {
-    chart.data.labels.shift();
-    chart.data.datasets[0].data.shift();
-  }
+function updateChart(data) {
+  chart.data.labels = Array.from({length: data.length}, (_, i) => i + 1);
+  chart.data.datasets[0].data = data;
   chart.update();
 }
 
-function simulateLiveValue(key) {
-  const base = { temp: 28, hum: 70, press: 1.01, light: 500 }[key] || 0;
-  return base + (Math.random() * 2 - 1);
+function getRandomData(points) {
+  return Array.from({length: points}, () => (Math.random() * 100).toFixed(2));
 }
 
-document.getElementById('btnRealtime').onclick = () => {
-  document.getElementById('historyPanel').classList.remove('active');
-  startRealtime();
+function changeTimeRange() {
+  const range = document.getElementById('timeRange').value;
+  let points = 10;
+  if (range === '1m') points = 10;
+  if (range === '5m') points = 30;
+  if (range === '15m') points = 50;
+  if (range === '1h') points = 100;
+
+  createChart(getRandomData(points), chartUnit);
+}
+
+// Đóng modal khi click ngoài
+window.onclick = function(event) {
+  const modal = document.getElementById('chartModal');
+  if (event.target === modal) {
+    closeChart();
+  }
 };
-document.getElementById('btnHistory').onclick = () => {
-  stopRealtime();
-  document.getElementById('historyPanel').classList.toggle('active');
-};
-
-function loadHistory() {
-  const fromStr = document.getElementById('fromTime').value;
-  const toStr = document.getElementById('toTime').value;
-  console.log('Tải lịch sử', fromStr, toStr);
-  if (!fromStr || !toStr) { alert('Chọn đầy đủ thời gian'); return; }
-  const from = new Date(fromStr);
-  const to = new Date(toStr);
-  if (to <= from) { alert('Thời gian không hợp lệ'); return; }
-  stopRealtime();
-  mode = 'history';
-  initChart();
-  fetchHistory(currentSensorKey, from, to).then(points => {
-    chart.data.labels = points.map(p => new Date(p.ts).toLocaleString());
-    chart.data.datasets[0].data = points.map(p => p.value);
-    chart.update();
-  });
-}
-
-function fetchHistory(key, from, to) {
-  return new Promise(resolve => {
-    const points = [];
-    const step = 60000; // 1 phút
-    for (let t = from.getTime(); t <= to.getTime(); t += step) {
-      points.push({ ts: t, value: simulateLiveValue(key) });
-    }
-    resolve(points);
-  });
-}
