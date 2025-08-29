@@ -1,60 +1,59 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Dashboard Khí Y Tế</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
   <div class="dashboard">
-    <div class="tile" onclick="openChart('Bồn Oxy 1', '%')">
-      <h3>BỒN OXY 1</h3>
-      <p class="value" id="oxy1">32.23</p>
-      <span>%</span>
+    <div class="tile" onclick="openChart('Bồn Oxy 1','%','oxy1')">
+      <h3>BỒN OXY 1</h3><p class="value" id="oxy1">32.23</p><span>%</span>
     </div>
-    <div class="tile" onclick="openChart('Bồn Oxy 2', '%')">
-      <h3>BỒN OXY 2</h3>
-      <p class="value" id="oxy2">0.00</p>
-      <span>%</span>
+    <div class="tile" onclick="openChart('Bồn Oxy 2','%','oxy2')">
+      <h3>BỒN OXY 2</h3><p class="value" id="oxy2">0.00</p><span>%</span>
     </div>
-    <div class="tile" onclick="openChart('Oxy', 'BAR')">
-      <h3>OXY</h3>
-      <p class="value" id="oxy">5.51</p>
-      <span>BAR</span>
+    <div class="tile" onclick="openChart('Oxy','BAR','oxy')">
+      <h3>OXY</h3><p class="value" id="oxy">5.51</p><span>BAR</span>
     </div>
-    <div class="tile" onclick="openChart('Khí Hút - VAC', 'mmHg')">
-      <h3>KHÍ HÚT - VAC</h3>
-      <p class="value" id="vac">0.00</p>
-      <span>mmHg</span>
+    <div class="tile" onclick="openChart('Khí Hút - VAC','mmHg','vac')">
+      <h3>KHÍ HÚT - VAC</h3><p class="value" id="vac">0.00</p><span>mmHg</span>
     </div>
-    <div class="tile" onclick="openChart('Khí Nén - AIR4', 'BAR')">
-      <h3>KHÍ NÉN - AIR4</h3>
-      <p class="value" id="air4">-0.00</p>
-      <span>BAR</span>
+    <div class="tile" onclick="openChart('Khí Nén - AIR4','BAR','air4')">
+      <h3>KHÍ NÉN - AIR4</h3><p class="value" id="air4">-0.00</p><span>BAR</span>
     </div>
-    <div class="tile" onclick="openChart('Khí Nén - AIR7', 'BAR')">
-      <h3>KHÍ NÉN - AIR7</h3>
-      <p class="value" id="air7">9.81</p>
-      <span>BAR</span>
+    <div class="tile" onclick="openChart('Khí Nén - AIR7','BAR','air7')">
+      <h3>KHÍ NÉN - AIR7</h3><p class="value" id="air7">9.81</p><span>BAR</span>
     </div>
   </div>
 
-  <!-- Modal hiển thị biểu đồ -->
+  <!-- Modal biểu đồ -->
   <div id="chartModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeChart()">&times;</span>
-      <h2 id="chartTitle"></h2>
-      <canvas id="realtimeChart" height="100"></canvas>
-      <div class="time-range">
-        <label>Khoảng thời gian: 
-          <select id="timeRange" onchange="changeTimeRange()">
-            <option value="1m">1 phút</option>
-            <option value="5m">5 phút</option>
-            <option value="15m">15 phút</option>
-            <option value="1h">1 giờ</option>
-          </select>
-        </label>
+      <div class="modal-head">
+        <h2 id="chartTitle"></h2>
+        <div class="controls">
+          <button id="btnRealtime" class="btn" onclick="switchToRealtime()">Realtime</button>
+          <button id="btnHistory" class="btn outline" onclick="toggleHistoryPanel()">Lịch sử</button>
+        </div>
+      </div>
+
+      <canvas id="realtimeChart" height="110"></canvas>
+
+      <!-- Khung chọn khoảng thời gian -->
+      <div id="historyPanel" class="history hidden">
+        <div class="row">
+          <label>Từ:
+            <input id="fromTime" type="datetime-local">
+          </label>
+          <label>Đến:
+            <input id="toTime" type="datetime-local">
+          </label>
+          <button class="btn" onclick="loadHistory()">Tải dữ liệu</button>
+        </div>
+        <small>Gợi ý: chọn tối đa vài ngày để tải nhanh. Khi xem lịch sử, cập nhật realtime sẽ tạm dừng.</small>
       </div>
     </div>
   </div>
