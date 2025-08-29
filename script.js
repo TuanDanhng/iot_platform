@@ -140,35 +140,88 @@
 //   setInterval(updateDashboardValues, 1000); // lặp lại mỗi giây
 // });
 
-// ---------------- EraWidget ----------------
-const eraWidget = new EraWidget();
-let configMap = {};   // map sensor name -> ERA ID
-let sensorData = {};  // lưu giá trị sensor mới nhất
 
-// Lấy config từ Era
-eraWidget.onConfiguration((configuration) => {
-    configuration.realtime_configs.forEach(cfg => {
-        configMap[cfg.name] = cfg.id;
-    });
-});
-
-// Lấy dữ liệu realtime từ Era
-eraWidget.onValues((values) => {
-    for (let id in values) {
-        sensorData[id] = values[id].value;
-    }
-});
-
-eraWidget.ready();
-
-// ---------------- Dashboard & Chart ----------------
 let chart = null;
 let chartLabel = '';
 let chartUnit = '';
 let mode = 'realtime';
 let realtimeInterval = null;
 
-// ---------------- Hàm mở chart ----------------
+// ---------------- EraWidget ----------------
+const eraWidget = new EraWidget();
+let configMap = {};    // map sensor name -> ERA ID
+let sensorData = {};   // lưu giá trị realtime mới nhất
+let sensorBuffer = {}; // lưu buffer dữ liệu cho chart lịch sử tạm thời
+
+// Các tên sensor bạn có
+const sensorNames = [
+    "giá trị rs485",
+    "giá trị rs485_2",
+    "giá trị rs485_3",
+    "giá trị rs485_4",
+    "giá trị rs485_5",
+    "giá trị rs485_6",
+];
+
+// Khởi tạo buffer cho từng sensor
+sensorNames.forEach(name => {
+    sensorBuffer[name] = [];
+});
+
+// Lấy config từ Era
+eraWidget.onConfiguration((configuration) => {
+    configuration.realtime_configs.forEach(cfg => {
+        if (sensorNames.includes(cfg.name)) {
+            configMap[cfg.name] = cfg.id;
+        }
+    });
+});
+
+// Lấy dữ liệu realtime từ Era
+eraWidget.onValues((values) => {
+    for (let id in values) {
+        let sensorName = Object.keys(configMap).find(name => configMap[name] === id);
+        if (sensorName) {
+            const val = values[id].value;
+            sensorData[sensorName] = val;
+
+            // Lưu vào buffer để chart
+            sensorBuffer[sensorName].push(val);
+            if (sensorBuffer[sensorName].length > 50) { // giới hạn 50 điểm
+                sensorBuffer[sensorName].shift();
+            }
+        }
+    }
+});
+
+eraWidget.ready();
+
+// ---------------- Dashboard ----------------
+function createDashboard() {
+    const container = document.getElementById('dashboardContainer');
+    container.innerHTML = '';
+    sensorNames.forEach(name => {
+        const box = document.createElement('div');
+        box.className = 'sensorBox';
+        box.id = 'box_' + name;
+        box.innerHTML = `
+            <div class="sensorName">${name}</div>
+            <div class="sensorValue" id="val_${name}">0</div>
+        `;
+        box.onclick = () => openChart(name);
+        container.appendChild(box);
+    });
+}
+
+function updateDashboardValues() {
+    sensorNames.forEach(name => {
+        const val = sensorData[name] !== undefined ? sensorData[name] : 0;
+        const el = document.getElementById('val_' + name);
+        if (el) el.textContent = val;
+    });
+}
+
+// ---------------- Chart ----------------
 function openChart(label, unit='') {
     document.getElementById('chartModal').style.display = 'block';
     document.getElementById('chartTitle').innerText = label;
@@ -200,24 +253,15 @@ function switchMode() {
     }
 }
 
-// ---------------- Chart Realtime từ Era ----------------
 function startRealtimeChart() {
     if (realtimeInterval) clearInterval(realtimeInterval);
-
-    const sensorId = configMap[chartLabel];
-    let data = [];
-    if (sensorData[sensorId] !== undefined) {
-        data.push(sensorData[sensorId]);
-    } else {
-        data.push(0);
-    }
-
+    let data = sensorBuffer[chartLabel] ? [...sensorBuffer[chartLabel]] : [0];
     createChart(data, chartUnit);
 
     realtimeInterval = setInterval(() => {
-        const val = sensorData[sensorId] !== undefined ? sensorData[sensorId] : 0;
+        const val = sensorData[chartLabel] !== undefined ? sensorData[chartLabel] : 0;
         data.push(val);
-        if (data.length > 20) data.shift();
+        if (data.length > 50) data.shift();
         updateChart(data);
     }, 1000);
 }
@@ -254,37 +298,39 @@ function updateChart(data) {
     chart.update();
 }
 
-// ---------------- Dashboard Realtime ----------------
-function createDashboard() {
-    const container = document.getElementById('dashboardContainer');
-    container.innerHTML = ''; // xóa hết nếu có
-    for (let name in configMap) {
-        const box = document.createElement('div');
-        box.className = 'sensorBox';
-        box.id = 'box_' + name;
-        box.innerHTML = `
-            <div class="sensorName">${name}</div>
-            <div class="sensorValue" id="val_${name}">0</div>
-        `;
-        box.onclick = () => openChart(name);
-        container.appendChild(box);
+// ---------------- Lịch sử ----------------
+function loadHistory() {
+    const start = document.getElementById('startTime').value;
+    const end = document.getElementById('endTime').value;
+    if (!start || !end) {
+        alert('Vui lòng chọn cả thời gian bắt đầu và kết thúc.');
+        return;
     }
-}
 
-function updateDashboardValues() {
-    for (let name in configMap) {
-        const sensorId = configMap[name];
-        const val = sensorData[sensorId] !== undefined ? sensorData[sensorId] : 0;
-        const el = document.getElementById('val_' + name);
-        if (el) el.textContent = val; 
+    const startTime = new Date(start);
+    const endTime = new Date(end);
+    const diffMs = endTime - startTime;
+
+    if (diffMs <= 0) {
+        alert('Thời gian kết thúc phải sau thời gian bắt đầu.');
+        return;
     }
+
+    const diffMinutes = Math.floor(diffMs / 60000);
+    let points = diffMinutes;
+    if (points < 5) points = 5;
+    if (points > 200) points = 200;
+
+    // Lấy buffer hiện tại để vẽ (không dùng random)
+    const data = sensorBuffer[chartLabel] ? [...sensorBuffer[chartLabel]] : [];
+    createChart(data, chartUnit);
 }
 
 // ---------------- Khi load trang ----------------
-window.addEventListener('load', () => {
-    createDashboard();            // tạo các ô sensor
-    updateDashboardValues();      // cập nhật 1 lần ban đầu
-    setInterval(updateDashboardValues, 1000);  // lặp mỗi giây
+window.addEventListener('load', function() {
+    createDashboard();
+    updateDashboardValues();
+    setInterval(updateDashboardValues, 1000);
 });
 
 // ---------------- Đóng modal khi click ngoài ----------------
@@ -294,4 +340,3 @@ window.onclick = function(event) {
         closeChart();
     }
 };
-
