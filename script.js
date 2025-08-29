@@ -1,7 +1,7 @@
 let chart = null;
 let chartLabel = '';
 let chartUnit = '';
-let mode = 'realtime'; 
+let mode = 'realtime';
 let realtimeInterval = null;
 
 function openChart(label, unit) {
@@ -44,7 +44,18 @@ function startRealtimeChart() {
     data.push((Math.random() * 100).toFixed(2));
     if (data.length > 20) data.shift();
     updateChart(data);
+    updateDashboardValues(); // <-- thêm dòng này
   }, 1000);
+
+}
+
+function updateDashboardValues() {
+  document.getElementById("oxy1").textContent = (Math.random() * 100).toFixed(2);
+  document.getElementById("oxy2").textContent = (Math.random() * 100).toFixed(2);
+  document.getElementById("oxy").textContent = (Math.random() * 10).toFixed(2);
+  document.getElementById("vac").textContent = (Math.random() * 1).toFixed(2);
+  document.getElementById("air4").textContent = (Math.random() * 0.1).toFixed(2);
+  document.getElementById("air7").textContent = (Math.random() * 10).toFixed(2);
 }
 
 function createChart(data, unit) {
@@ -53,7 +64,7 @@ function createChart(data, unit) {
   chart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: Array.from({length: data.length}, (_, i) => i + 1),
+      labels: Array.from({ length: data.length }, (_, i) => i + 1),
       datasets: [{
         label: chartLabel + ' (' + unit + ')',
         data: data,
@@ -74,13 +85,13 @@ function createChart(data, unit) {
 }
 
 function updateChart(data) {
-  chart.data.labels = Array.from({length: data.length}, (_, i) => i + 1);
+  chart.data.labels = Array.from({ length: data.length }, (_, i) => i + 1);
   chart.data.datasets[0].data = data;
   chart.update();
 }
 
 function getRandomData(points) {
-  return Array.from({length: points}, () => (Math.random() * 100).toFixed(2));
+  return Array.from({ length: points }, () => (Math.random() * 100).toFixed(2));
 }
 
 // Giả lập tải dữ liệu lịch sử theo khoảng thời gian
@@ -113,9 +124,10 @@ function loadHistory() {
 
 
 // Đóng modal khi click ngoài
-window.onclick = function(event) {
+window.onclick = function (event) {
   const modal = document.getElementById('chartModal');
   if (event.target === modal) {
     closeChart();
   }
 };
+
