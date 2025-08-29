@@ -6,7 +6,7 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, 1fr); /* 3 ô mỗi hàng */
   gap: 20px;
   padding: 20px;
 }
@@ -80,5 +80,9 @@ body {
 
 .time-range {
   margin-bottom: 15px;
-  text-align: right;
+  text-align: left;
+}
+
+.time-range label {
+  margin-right: 10px;
 }

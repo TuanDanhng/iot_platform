@@ -31,7 +31,7 @@ function switchMode() {
   } else {
     document.getElementById('timeRangeBox').style.display = 'block';
     if (realtimeInterval) clearInterval(realtimeInterval);
-    createChart(getRandomData(10), chartUnit);
+    createChart([], chartUnit); // ban đầu trống
   }
 }
 
@@ -83,14 +83,16 @@ function getRandomData(points) {
   return Array.from({length: points}, () => (Math.random() * 100).toFixed(2));
 }
 
-function changeTimeRange() {
-  const range = document.getElementById('timeRange').value;
-  let points = 10;
-  if (range === '1m') points = 10;
-  if (range === '5m') points = 30;
-  if (range === '15m') points = 50;
-  if (range === '1h') points = 100;
-
+// Giả lập tải dữ liệu lịch sử theo khoảng thời gian
+function loadHistory() {
+  const start = document.getElementById('startTime').value;
+  const end = document.getElementById('endTime').value;
+  if (!start || !end) {
+    alert('Vui lòng chọn cả thời gian bắt đầu và kết thúc.');
+    return;
+  }
+  // Giả lập số điểm dựa trên khoảng cách thời gian (thực tế gọi API để lấy dữ liệu)
+  const points = 30; // bạn có thể tính theo thời gian thực
   createChart(getRandomData(points), chartUnit);
 }
 

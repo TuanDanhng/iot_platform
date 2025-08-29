@@ -52,16 +52,11 @@
         <label><input type="radio" name="mode" value="history" onchange="switchMode()"> Lịch sử</label>
       </div>
 
-      <!-- Dropdown chọn khoảng thời gian (chỉ hiện khi chọn Lịch sử) -->
+      <!-- Chọn khoảng thời gian (tùy ý) -->
       <div class="time-range" id="timeRangeBox" style="display:none;">
-        <label>Khoảng thời gian: 
-          <select id="timeRange" onchange="changeTimeRange()">
-            <option value="1m">1 phút</option>
-            <option value="5m">5 phút</option>
-            <option value="15m">15 phút</option>
-            <option value="1h">1 giờ</option>
-          </select>
-        </label>
+        <label>Từ: <input type="datetime-local" id="startTime"></label>
+        <label>Đến: <input type="datetime-local" id="endTime"></label>
+        <button onclick="loadHistory()">Xem dữ liệu</button>
       </div>
 
       <canvas id="realtimeChart" height="100"></canvas>
