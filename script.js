@@ -123,6 +123,8 @@ window.onclick = function (event) {
     closeChart();
   }
 };
+
+// Hàm cập nhật giá trị dashboard mỗi giây (độc lập)
 function updateDashboardValues() {
   document.getElementById("oxy1").textContent = (Math.random() * 100).toFixed(2);
   document.getElementById("oxy2").textContent = (Math.random() * 100).toFixed(2);
@@ -131,6 +133,8 @@ function updateDashboardValues() {
   document.getElementById("air4").textContent = (Math.random() * 0.1).toFixed(2);
   document.getElementById("air7").textContent = (Math.random() * 10).toFixed(2);
 }
+
+// Khi tải trang, chạy cập nhật giá trị dashboard liên tục
 window.onload = function() {
   setInterval(updateDashboardValues, 1000);
 };
