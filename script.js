@@ -168,13 +168,16 @@ eraWidget.ready();
 // Map dashboard ID với ERA sensor name
 // ======================================
 let sensorIdMap = {
-    "oxy1": "Oxy1",
-    "oxy2": "Oxy2",
-    "oxy": "Oxy",
-    "vac": "Vac",
-    "air4": "Air4",
-    "air7": "Air7"
+    "oxy1": "rs485",       // Bồn Oxy 1
+    "oxy2": "rs485_2",     // Bồn Oxy 2
+    "oxy": "rs485_3",      // Oxy
+    "vac": "rs485_4",      // Khí hút VAC
+    "air4": "rs485_5",     // Khí nén AIR4
+    "air7": "rs485_6",     // Khí nén AIR7
+    // Nếu muốn thêm sensor thứ 7
+    //"someOther": "rs485_7"
 };
+
 
 // ======================================
 // Dashboard update
