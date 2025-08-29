@@ -146,6 +146,7 @@
 // ======================================
 
 // ================= ERA Widget =================
+
 const eraWidget = new EraWidget();
 let configMap = {};   // map sensor name -> ERA ID
 let sensorData = {};  // lưu giá trị sensor mới nhất
