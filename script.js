@@ -144,14 +144,16 @@
 // ======================================
 // ERA Widget setup
 // ======================================
+
+// ================= ERA Widget =================
 const eraWidget = new EraWidget();
-let configMap = {};   // map sensor ID từ ERA
+let configMap = {};   // map sensor name -> ERA ID
 let sensorData = {};  // lưu giá trị sensor mới nhất
 
 eraWidget.onConfiguration((configuration) => {
     // Lấy tất cả config realtime
     configuration.realtime_configs.forEach(cfg => {
-        configMap[cfg.name] = cfg.id; // key là tên sensor, value là ID
+        configMap[cfg.name] = cfg.id; // key là sensor name, value là ERA ID
     });
 });
 
@@ -164,9 +166,7 @@ eraWidget.onValues((values) => {
 
 eraWidget.ready();
 
-// ======================================
-// Map dashboard ID với ERA sensor name
-// ======================================
+// ================= Dashboard map =================
 let sensorIdMap = {
     "oxy1": "rs485",       // Bồn Oxy 1
     "oxy2": "rs485_2",     // Bồn Oxy 2
@@ -174,14 +174,10 @@ let sensorIdMap = {
     "vac": "rs485_4",      // Khí hút VAC
     "air4": "rs485_5",     // Khí nén AIR4
     "air7": "rs485_6",     // Khí nén AIR7
-    // Nếu muốn thêm sensor thứ 7
-    //"someOther": "rs485_7"
+    // "rs485_7" nếu cần thêm sensor thứ 7
 };
 
-
-// ======================================
-// Dashboard update
-// ======================================
+// ================= Dashboard update =================
 function updateDashboardValues() {
     for (let key in sensorIdMap) {
         const sensorName = sensorIdMap[key];
@@ -193,9 +189,7 @@ function updateDashboardValues() {
 // Cập nhật liên tục mỗi giây
 setInterval(updateDashboardValues, 1000);
 
-// ======================================
-// Chart modal
-// ======================================
+// ================= Chart modal =================
 let chart = null;
 let chartLabel = '';
 let chartUnit = '';
@@ -203,6 +197,15 @@ let mode = 'realtime';
 let realtimeInterval = null;
 let chartData = [];
 
+// Hàm map chartLabel sang sensorIdMap
+function getSensorIdFromLabel(label) {
+    const key = Object.keys(sensorIdMap).find(k =>
+        label.toLowerCase().includes(k.toLowerCase())
+    );
+    return key ? sensorIdMap[key] : null;
+}
+
+// Mở modal chart
 function openChart(label, unit) {
     document.getElementById('chartModal').style.display = 'block';
     document.getElementById('chartTitle').innerText = label;
@@ -216,12 +219,14 @@ function openChart(label, unit) {
     startRealtimeChart();
 }
 
+// Đóng modal chart
 function closeChart() {
     document.getElementById('chartModal').style.display = 'none';
     if (chart) chart.destroy();
     if (realtimeInterval) clearInterval(realtimeInterval);
 }
 
+// Chuyển giữa realtime và history
 function switchMode() {
     mode = document.querySelector('input[name="mode"]:checked').value;
     if (mode === 'realtime') {
@@ -234,34 +239,25 @@ function switchMode() {
     }
 }
 
-// ======================================
-// Chart realtime
-// ======================================
+// ================= Chart realtime =================
 function startRealtimeChart() {
     if (realtimeInterval) clearInterval(realtimeInterval);
 
     chartData = []; // reset dữ liệu chart
     createChart(chartData, chartUnit);
 
-    realtimeInterval = setInterval(() => {
-        // Lấy sensor ID tương ứng với chartLabel
-        const key = Object.keys(sensorIdMap).find(k => chartLabel.toLowerCase().includes(k.toLowerCase()));
-        let value = 0;
-        if (key) {
-            const sensorName = sensorIdMap[key];
-            value = parseFloat(sensorData[configMap[sensorName]] || 0);
-        }
+    const sensorId = getSensorIdFromLabel(chartLabel);
+    if (!sensorId) return;
 
+    realtimeInterval = setInterval(() => {
+        let value = parseFloat(sensorData[configMap[sensorId]] || 0);
         chartData.push(value);
         if (chartData.length > 20) chartData.shift();
         updateChart(chartData);
-
     }, 1000);
 }
 
-// ======================================
-// Chart helper functions
-// ======================================
+// ================= Chart helper =================
 function createChart(data, unit) {
     const ctx = document.getElementById('realtimeChart').getContext('2d');
     if (chart) chart.destroy();
@@ -294,9 +290,7 @@ function updateChart(data) {
     chart.update();
 }
 
-// ======================================
-// History (hiện vẫn giả lập)
-// ======================================
+// ================= History (giả lập) =================
 function loadHistory() {
     const start = document.getElementById('startTime').value;
     const end = document.getElementById('endTime').value;
@@ -319,15 +313,13 @@ function loadHistory() {
     if (points < 5) points = 5;
     if (points > 200) points = 200;
 
-    // Hiện vẫn lấy dữ liệu giả
     const data = Array.from({ length: points }, () => (Math.random() * 100).toFixed(2));
     createChart(data, chartUnit);
 }
 
-// ======================================
-// Close modal khi click ngoài
-// ======================================
+// ================= Close modal khi click ngoài =================
 window.onclick = function (event) {
     const modal = document.getElementById('chartModal');
     if (event.target === modal) closeChart();
 };
+
