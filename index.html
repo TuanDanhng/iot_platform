@@ -5,16 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Live Multi-Sensor Dashboard</title>
 
-<!-- Highcharts -->
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <script src="https://code.highcharts.com/modules/export-data.js"></script>
 <script src="https://code.highcharts.com/modules/accessibility.js"></script>
 
-<!-- ERA Widget -->
 <script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
-
-<!-- XLSX export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 
 <style>
@@ -23,10 +19,10 @@ h2 { text-align: center; margin-top: 20px; }
 
 .dashboard { 
     display: flex; 
-    flex-direction: column; /* xếp dọc */
+    flex-direction: column; 
     gap: 15px; 
     margin: 20px auto; 
-    width: 200px; /* độ rộng ô */
+    width: 200px;
 }
 .cell { 
     border: 1px solid #ccc; 
@@ -38,7 +34,7 @@ h2 { text-align: center; margin-top: 20px; }
     align-items: center; 
     cursor: pointer; 
     background: #f7f7f7; 
-    border-radius: 15px; /* bo tròn ô */
+    border-radius: 15px; 
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -49,7 +45,6 @@ h2 { text-align: center; margin-top: 20px; }
 .cell h3 { margin: 5px 0; }
 .cell p { font-size: 1.2em; margin: 0; }
 
-/* Modal overlay */
 #chartModal {
     display: none;
     position: fixed;
@@ -68,7 +63,7 @@ h2 { text-align: center; margin-top: 20px; }
     padding: 20px;
     width: 90%;
     max-width: 1000px;
-    height: 500px;
+    height: 550px;
     position: relative;
     border-radius: 15px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
@@ -82,24 +77,23 @@ h2 { text-align: center; margin-top: 20px; }
     font-size: 24px;
     font-weight: bold;
 }
-#chartContainer { flex: 1; width: 100%; }
-#timeRange, #exportChart { margin-top: 10px; align-self: flex-start; }
+#chartContainer { flex: 1; width: 100%; margin-top: 10px; }
+.controls { margin-top: 10px; display: flex; gap: 20px; align-items: center; }
+.controls label { margin-right: 5px; }
 </style>
 </head>
 <body>
 
-<!-- <h2>Giám sát hệ thống</h2> -->
-
-<div class="dashboard" id="dashboard">
-    <!-- Các ô sẽ được tạo tự động bằng JS -->
-</div>
+<h2>Giám sát hệ thống</h2>
+<div class="dashboard" id="dashboard"></div>
 
 <div id="chartModal">
     <div id="chartContent">
         <span id="closeChart">✖</span>
-        <div id="chartContainer"></div>
-        <div>
-            <label for="timeRange">Show last: </label>
+        <div class="controls">
+            <label><input type="radio" name="mode" value="realtime" checked> Realtime</label>
+            <label><input type="radio" name="mode" value="history"> History</label>
+            <label for="timeRange">Show last:</label>
             <select id="timeRange">
                 <option value="60">1 min</option>
                 <option value="300">5 min</option>
@@ -109,18 +103,17 @@ h2 { text-align: center; margin-top: 20px; }
             </select>
             <button id="exportChart">Export to Excel</button>
         </div>
+        <div id="chartContainer"></div>
     </div>
 </div>
 
 <script>
-// ERA Widget setup
 const eraWidget = new EraWidget();
 const sensorCount = 6;
 const sensorConfigs = [];
 const sensorValues = Array(sensorCount).fill(0);
 const sensorBuffers = Array.from({length: sensorCount}, () => []);
 
-// Tạo dashboard 6 ô
 const dashboard = document.getElementById('dashboard');
 for (let i = 0; i < sensorCount; i++) {
     const cell = document.createElement('div');
@@ -131,14 +124,12 @@ for (let i = 0; i < sensorCount; i++) {
     cell.addEventListener('click', () => openChart(i));
 }
 
-// Nhận cấu hình từ ERA Widget
 eraWidget.onConfiguration(config => {
     config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
         sensorConfigs[idx] = cfg;
     });
 });
 
-// Nhận dữ liệu realtime
 eraWidget.onValues(values => {
     sensorConfigs.forEach((cfg, idx) => {
         if (!cfg) return;
@@ -147,7 +138,6 @@ eraWidget.onValues(values => {
         const cell = document.getElementById('sensorCell'+idx);
         cell.querySelector('p').innerText = val.toFixed(2);
 
-        // Lưu buffer tối đa 1 giờ
         const t = (new Date()).getTime();
         sensorBuffers[idx].push([t, val]);
         const maxBuffer = 3600*1000;
@@ -162,9 +152,14 @@ eraWidget.ready();
 // Modal chart
 let chartInstance = null;
 let currentSensor = 0;
+let chartInterval = null;
 const modal = document.getElementById('chartModal');
 const chartContainer = document.getElementById('chartContainer');
-document.getElementById('closeChart').addEventListener('click', () => modal.classList.remove('show'));
+
+document.getElementById('closeChart').addEventListener('click', () => {
+    modal.classList.remove('show');
+    clearInterval(chartInterval);
+});
 
 function openChart(sensorIndex) {
     currentSensor = sensorIndex;
@@ -172,28 +167,46 @@ function openChart(sensorIndex) {
     renderChart();
 }
 
+const radios = document.querySelectorAll('input[name="mode"]');
+radios.forEach(r => r.addEventListener('change', renderChart));
 document.getElementById('timeRange').addEventListener('change', renderChart);
 
 function renderChart() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
     const rangeSec = parseInt(document.getElementById('timeRange').value);
     const now = (new Date()).getTime();
-    const data = sensorBuffers[currentSensor].filter(p => p[0] >= now - rangeSec*1000);
 
     if (chartInstance) chartInstance.destroy();
+    clearInterval(chartInterval);
 
-    chartInstance = Highcharts.chart(chartContainer, {
-        chart: { type: 'areaspline' },
-        title: { text: `Sensor ${currentSensor+1} Data` },
-        xAxis: { type: 'datetime' },
-        yAxis: { title: { text: 'Value' } },
-        tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
-        series: [{
-            name: 'Value',
-            data,
-            lineWidth: 2,
-            fillOpacity: 0.3
-        }]
-    });
+    if (mode === 'realtime') {
+        // Vẽ chart realtime
+        chartInstance = Highcharts.chart(chartContainer, {
+            chart: { type: 'areaspline' },
+            title: { text: `Sensor ${currentSensor+1} Realtime` },
+            xAxis: { type: 'datetime' },
+            yAxis: { title: { text: 'Value' } },
+            tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
+            series: [{ name: 'Value', data: [] , lineWidth: 2, fillOpacity: 0.3 }]
+        });
+
+        chartInterval = setInterval(() => {
+            const x = (new Date()).getTime();
+            const y = sensorValues[currentSensor];
+            chartInstance.series[0].addPoint([x, y], true, chartInstance.series[0].data.length>1800);
+        }, 1000);
+    } else {
+        // History
+        const data = sensorBuffers[currentSensor].filter(p => p[0] >= now - rangeSec*1000);
+        chartInstance = Highcharts.chart(chartContainer, {
+            chart: { type: 'areaspline' },
+            title: { text: `Sensor ${currentSensor+1} History` },
+            xAxis: { type: 'datetime' },
+            yAxis: { title: { text: 'Value' } },
+            tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
+            series: [{ name: 'Value', data, lineWidth: 2, fillOpacity: 0.3 }]
+        });
+    }
 }
 
 // Export dữ liệu chart
