@@ -4,47 +4,92 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Live Multi-Sensor Dashboard</title>
+
+<!-- Highcharts -->
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <script src="https://code.highcharts.com/modules/export-data.js"></script>
 <script src="https://code.highcharts.com/modules/accessibility.js"></script>
-<script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
-<style>
-    body { font-family: Arial, sans-serif; }
-    .dashboard { 
-        display: flex; 
-        flex-direction: column; /* xếp dọc */
-        gap: 15px; 
-        margin: 10px auto; 
-        width: 200px; /* độ rộng ô */
-    }
-    .cell { 
-        border: 1px solid #ccc; 
-        padding: 15px; 
-        height: 100px; 
-        display: flex; 
-        flex-direction: column; 
-        justify-content: center; 
-        align-items: center; 
-        cursor: pointer; 
-        background: #f7f7f7; 
-        border-radius: 15px; /* bo tròn ô */
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .cell:hover {
-        transform: scale(1.03);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
-    .cell h3 { margin: 5px 0; }
-    .cell p { font-size: 1.2em; margin: 0; }
-</style>
 
+<!-- ERA Widget -->
+<script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
+
+<!-- XLSX export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+
+<style>
+body { font-family: Arial, sans-serif; }
+h2 { text-align: center; margin-top: 20px; }
+
+.dashboard { 
+    display: flex; 
+    flex-direction: column; /* xếp dọc */
+    gap: 15px; 
+    margin: 20px auto; 
+    width: 200px; /* độ rộng ô */
+}
+.cell { 
+    border: 1px solid #ccc; 
+    padding: 15px; 
+    height: 100px; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center; 
+    align-items: center; 
+    cursor: pointer; 
+    background: #f7f7f7; 
+    border-radius: 15px; /* bo tròn ô */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.cell:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.cell h3 { margin: 5px 0; }
+.cell p { font-size: 1.2em; margin: 0; }
+
+/* Modal overlay */
+#chartModal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+#chartModal.show {
+    display: flex;
+}
+#chartContent {
+    background: #fff;
+    padding: 20px;
+    width: 90%;
+    max-width: 1000px;
+    height: 500px;
+    position: relative;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    display: flex;
+    flex-direction: column;
+}
+#closeChart {
+    position: absolute;
+    top: 10px; right: 10px;
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: bold;
+}
+#chartContainer { flex: 1; width: 100%; }
+#timeRange, #exportChart { margin-top: 10px; align-self: flex-start; }
+</style>
 </head>
 <body>
 
-<h2>Giám sát hệ thống</h2>
+<!-- <h2>Giám sát hệ thống</h2> -->
+
 <div class="dashboard" id="dashboard">
     <!-- Các ô sẽ được tạo tự động bằng JS -->
 </div>
@@ -52,7 +97,7 @@
 <div id="chartModal">
     <div id="chartContent">
         <span id="closeChart">✖</span>
-        <div id="chartContainer" style="height: 100%; width: 100%;"></div>
+        <div id="chartContainer"></div>
         <div>
             <label for="timeRange">Show last: </label>
             <select id="timeRange">
@@ -62,19 +107,20 @@
                 <option value="1800" selected>30 min</option>
                 <option value="3600">1 hour</option>
             </select>
+            <button id="exportChart">Export to Excel</button>
         </div>
-        <button id="exportChart">Export to Excel</button>
     </div>
 </div>
 
 <script>
+// ERA Widget setup
 const eraWidget = new EraWidget();
 const sensorCount = 6;
-const sensorConfigs = []; // lưu cấu hình từng sensor
-const sensorValues = Array(sensorCount).fill(0); // giá trị realtime
-const sensorBuffers = Array.from({length: sensorCount}, () => []); // buffer dữ liệu
+const sensorConfigs = [];
+const sensorValues = Array(sensorCount).fill(0);
+const sensorBuffers = Array.from({length: sensorCount}, () => []);
 
-// Tạo dashboard
+// Tạo dashboard 6 ô
 const dashboard = document.getElementById('dashboard');
 for (let i = 0; i < sensorCount; i++) {
     const cell = document.createElement('div');
@@ -82,11 +128,10 @@ for (let i = 0; i < sensorCount; i++) {
     cell.id = 'sensorCell' + i;
     cell.innerHTML = `<h3>Sensor ${i+1}</h3><p>0</p>`;
     dashboard.appendChild(cell);
-
     cell.addEventListener('click', () => openChart(i));
 }
 
-// Nhận config từ ERA Widget
+// Nhận cấu hình từ ERA Widget
 eraWidget.onConfiguration(config => {
     config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
         sensorConfigs[idx] = cfg;
@@ -99,16 +144,14 @@ eraWidget.onValues(values => {
         if (!cfg) return;
         const val = values[cfg.id]?.value ?? 0;
         sensorValues[idx] = val;
-
-        // Cập nhật ô dashboard
         const cell = document.getElementById('sensorCell'+idx);
         cell.querySelector('p').innerText = val.toFixed(2);
 
-        // Lưu vào buffer
+        // Lưu buffer tối đa 1 giờ
         const t = (new Date()).getTime();
         sensorBuffers[idx].push([t, val]);
-        const maxBuffer = 3600*1000; // lưu tối đa 1 giờ
-        while (sensorBuffers[idx].length > 0 && sensorBuffers[idx][0][0] < t - maxBuffer) {
+        const maxBuffer = 3600*1000;
+        while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
             sensorBuffers[idx].shift();
         }
     });
@@ -116,16 +159,16 @@ eraWidget.onValues(values => {
 
 eraWidget.ready();
 
-// Chart modal
+// Modal chart
 let chartInstance = null;
 let currentSensor = 0;
 const modal = document.getElementById('chartModal');
 const chartContainer = document.getElementById('chartContainer');
-document.getElementById('closeChart').addEventListener('click', () => modal.style.display='none');
+document.getElementById('closeChart').addEventListener('click', () => modal.classList.remove('show'));
 
 function openChart(sensorIndex) {
     currentSensor = sensorIndex;
-    modal.style.display = 'flex';
+    modal.classList.add('show');
     renderChart();
 }
 
