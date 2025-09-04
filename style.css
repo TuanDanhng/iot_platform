@@ -6,10 +6,13 @@ body {
 
 .dashboard {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* 3 ô mỗi hàng */
+  grid-template-columns: 1fr; /* luôn chỉ 1 cột */
   gap: 20px;
   padding: 20px;
+  box-sizing: border-box;
 }
+
+
 
 .tile {
   background: white;
