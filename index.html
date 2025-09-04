@@ -1,69 +1,43 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard Khí Y Tế</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
+  <title>Đọc dữ liệu từ ERA</title>
 </head>
 <body>
-  <div class="dashboard">
-    <div class="tile" onclick="openChart('Bồn Oxy 1', '%')">
-      <h3>BỒN OXY 1</h3>
-      <p class="value" id="oxy1">32.23</p>
-      <span>%</span>
-    </div>
-    <div class="tile" onclick="openChart('Bồn Oxy 2', '%')">
-      <h3>BỒN OXY 2</h3>
-      <p class="value" id="oxy2">0.00</p>
-      <span>%</span>
-    </div>
-    <div class="tile" onclick="openChart('Oxy', 'BAR')">
-      <h3>OXY</h3>
-      <p class="value" id="oxy">5.51</p>
-      <span>BAR</span>
-    </div>
-    <div class="tile" onclick="openChart('Khí Hút - VAC', 'mmHg')">
-      <h3>KHÍ HÚT - VAC</h3>
-      <p class="value" id="vac">0.00</p>
-      <span>mmHg</span>
-    </div>
-    <div class="tile" onclick="openChart('Khí Nén - AIR4', 'BAR')">
-      <h3>KHÍ NÉN - AIR4</h3>
-      <p class="value" id="air4">-0.00</p>
-      <span>BAR</span>
-    </div>
-    <div class="tile" onclick="openChart('Khí Nén - AIR7', 'BAR')">
-      <h3>KHÍ NÉN - AIR7</h3>
-      <p class="value" id="air7">9.81</p>
-      <span>BAR</span>
-    </div>
-  </div>
+  <h1>Giá trị RS485 (Datastream V)</h1>
+  <div id="valueBox">Đang tải...</div>
 
-  <!-- Modal hiển thị biểu đồ -->
-  <div id="chartModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeChart()">&times;</span>
-      <h2 id="chartTitle"></h2>
+  <script src="https://widget.era.vn/sdk/era-widget.js"></script>
+  <script>
+    const eraWidget = new EraWidget();
+    let sensorData = {}; // lưu giá trị mới nhất
 
-      <!-- Nút chọn chế độ -->
-      <div class="mode-select">
-        <label><input type="radio" name="mode" value="realtime" checked onchange="switchMode()"> Realtime</label>
-        <label><input type="radio" name="mode" value="history" onchange="switchMode()"> Lịch sử</label>
-      </div>
+    // Khi load cấu hình từ ERA (gateway + device + datastream)
+    eraWidget.onConfiguration((configuration) => {
+      console.log("Cấu hình:", configuration);
 
-      <!-- Chọn khoảng thời gian (tùy ý) -->
-      <div class="time-range" id="timeRangeBox" style="display:none;">
-        <label>Từ: <input type="datetime-local" id="startTime"></label>
-        <label>Đến: <input type="datetime-local" id="endTime"></label>
-        <button onclick="loadHistory()">Xem dữ liệu</button>
-      </div>
+      // duyệt qua datastream
+      configuration.realtime_configs.forEach(cfg => {
+        console.log("Tìm thấy:", cfg);
 
-      <canvas id="realtimeChart" height="100"></canvas>
-    </div>
-  </div>
+        // nếu là datastream V từ device ESP32_PLC
+        if (cfg.device_name === "ESP32_PLC" && cfg.datastream_name === "V") {
+          sensorData[cfg.name] = null; // khởi tạo
+        }
+      });
+    });
 
-  <script src="script.js"></script>
+    // Lắng nghe dữ liệu realtime
+    eraWidget.onRealtime((msg) => {
+      if (msg.name) {
+        sensorData[msg.name] = msg.value;
+        console.log("Có dữ liệu:", msg);
+
+        // Hiển thị lên web
+        document.getElementById("valueBox").innerText =
+          `Datastream ${msg.name} = ${msg.value}`;
+      }
+    });
+  </script>
 </body>
 </html>
