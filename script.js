@@ -149,7 +149,7 @@ let realtimeInterval = null;
 
 // ---------------- EraWidget ----------------
 const eraWidget = new EraWidget();
-let configMap = {};    // lưu config theo thứ tự
+let configMap = {}; // lưu config theo thứ tự
 let sensorData = {
   oxy1: 0,
   oxy2: 0,
@@ -174,7 +174,7 @@ eraWidget.init({
   needActions: true,
 
   onConfiguration: (configuration) => {
-    // Gán config theo thứ tự
+    // Gán config theo thứ tự (iframe with config)
     configMap.oxy1 = configuration.realtime_configs[0];
     configMap.oxy2 = configuration.realtime_configs[1];
     configMap.oxy  = configuration.realtime_configs[2];
@@ -196,7 +196,6 @@ eraWidget.init({
 
         // Lưu vào buffer chart
         sensorBuffer[key].push(val);
-        console.log(val);
         if (sensorBuffer[key].length > 50) sensorBuffer[key].shift();
 
         // Cập nhật giá trị trên dashboard
@@ -330,3 +329,4 @@ window.onclick = function(event) {
   const modal = document.getElementById('chartModal');
   if (event.target === modal) closeChart();
 };
+
