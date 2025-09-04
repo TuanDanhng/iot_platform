@@ -149,7 +149,16 @@ let realtimeInterval = null;
 
 // ---------------- EraWidget ----------------
 const eraWidget = new EraWidget();
-let configMap = {};    // lưu config từng sensor
+
+// Khởi tạo config cho từng sensor
+let configOxy1 = null;
+let configOxy2 = null;
+let configOxy  = null;
+let configVac  = null;
+let configAir4 = null;
+let configAir7 = null;
+
+// Giá trị hiện thời
 let sensorData = {
   oxy1: 0,
   oxy2: 0,
@@ -158,6 +167,8 @@ let sensorData = {
   air4: 0,
   air7: 0
 };
+
+// Buffer cho chart
 let sensorBuffer = {
   oxy1: [],
   oxy2: [],
@@ -167,46 +178,50 @@ let sensorBuffer = {
   air7: []
 };
 
-// ---------------- Lấy config từ Era ----------------
+// Khi nhận configuration từ Era
 eraWidget.onConfiguration((configuration) => {
-  configMap.oxy1 = configuration.realtime_configs[0];
-  configMap.oxy2 = configuration.realtime_configs[1];
-  configMap.oxy  = configuration.realtime_configs[2];
-  configMap.vac  = configuration.realtime_configs[3];
-  configMap.air4 = configuration.realtime_configs[4];
-  configMap.air7 = configuration.realtime_configs[5];
+    configOxy1 = configuration.realtime_configs[0];
+    configOxy2 = configuration.realtime_configs[1];
+    configOxy  = configuration.realtime_configs[2];
+    configVac  = configuration.realtime_configs[3];
+    configAir4 = configuration.realtime_configs[4];
+    configAir7 = configuration.realtime_configs[5];
 
-  // Load history khi có config
-  loadHistory();
+    // Load history khi có config
+    loadHistory();
 });
 
-// ---------------- Nhận giá trị realtime ----------------
+// Khi nhận giá trị realtime từ Era
 eraWidget.onValues((values) => {
-  Object.keys(configMap).forEach(key => {
-    const cfg = configMap[key];
-    if (cfg && values[cfg.id]) {
-      const val = values[cfg.id].value;
-      sensorData[key] = val;
+    // Cập nhật từng sensor
+    if (configOxy1 && values[configOxy1.id]) updateSensor('oxy1', values[configOxy1.id].value);
+    if (configOxy2 && values[configOxy2.id]) updateSensor('oxy2', values[configOxy2.id].value);
+    if (configOxy  && values[configOxy.id])  updateSensor('oxy',  values[configOxy.id].value);
+    if (configVac  && values[configVac.id])  updateSensor('vac',  values[configVac.id].value);
+    if (configAir4 && values[configAir4.id]) updateSensor('air4', values[configAir4.id].value);
+    if (configAir7 && values[configAir7.id]) updateSensor('air7', values[configAir7.id].value);
 
-      // Lưu vào buffer chart
-      sensorBuffer[key].push(val);
-      if (sensorBuffer[key].length > 50) sensorBuffer[key].shift();
-
-      // Cập nhật giá trị trên dashboard
-      const el = document.getElementById(key);
-      if (el) el.textContent = val.toFixed(2);
+    // Cập nhật chart realtime nếu đang mở
+    if (chartLabel && mode === 'realtime') {
+        const data = sensorBuffer[chartLabel] ? [...sensorBuffer[chartLabel]] : [0];
+        updateChart(data);
     }
-  });
-
-  // Nếu đang mở chart cho sensor nào, update chart ngay
-  if (chartLabel && mode === 'realtime') {
-    const data = sensorBuffer[chartLabel] ? [...sensorBuffer[chartLabel]] : [0];
-    updateChart(data);
-  }
 });
 
-// ---------------- Khởi động EraWidget ----------------
+// Hàm cập nhật sensor và buffer
+function updateSensor(key, val) {
+    sensorData[key] = val;
+
+    sensorBuffer[key].push(val);
+    if (sensorBuffer[key].length > 50) sensorBuffer[key].shift();
+
+    const el = document.getElementById(key);
+    if (el) el.textContent = val.toFixed(2);
+}
+
+// Khởi động EraWidget
 eraWidget.ready();
+
 
 
 // ---------------- Chart ----------------
