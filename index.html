@@ -1,69 +1,246 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Dashboard Khí Y Tế</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Sensor1 Data Chart</title>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+    <script src="https://code.highcharts.com/modules/exporting.js"></script>
+    <script src="https://code.highcharts.com/modules/export-data.js"></script>
+    <script src="https://code.highcharts.com/modules/accessibility.js"></script>
+    <script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
+    //<link rel="stylesheet" href="https://code.highcharts.com/css/highcharts.css">
+    <style>
+        .highcharts-figure,
+        .highcharts-data-table table {
+            min-width: 320px;
+            max-width: 1000px;
+            margin: 1em auto;
+        }
+
+        #container {
+            height: 400px;
+        }
+
+        .highcharts-data-table table {
+            font-family: Verdana, sans-serif;
+            border-collapse: collapse;
+            border: 1px solid #ebebeb;
+            margin: 10px auto;
+            text-align: center;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .highcharts-data-table caption {
+            padding: 1em 0;
+            font-size: 1.2em;
+            color: #555;
+        }
+
+        .highcharts-data-table th {
+            font-weight: 600;
+            padding: 0.5em;
+        }
+
+        .highcharts-data-table td,
+        .highcharts-data-table th,
+        .highcharts-data-table caption {
+            padding: 0.5em;
+        }
+
+        .highcharts-data-table thead tr,
+        .highcharts-data-table tr:nth-child(even) {
+            background: #a82c72;
+        }
+
+        .highcharts-data-table tr:hover {
+            background: #829DD8;
+        }
+
+        .cell {
+            height: 220px;
+        }
+
+        .highcharts-tooltip {
+            font-size: 20px;
+        }
+
+        .highcharts-area {
+            fill-opacity: 0.3;
+        }
+
+        #dashboard-cell-1 .highcharts-color-0 {
+            fill: var(--highcharts-color-1);
+            stroke: var(--highcharts-color-1);
+        }
+
+        #dashboard-cell-2 .highcharts-color-0 {
+            fill: var(--highcharts-color-2);
+            stroke: var(--highcharts-color-2);
+        }
+    </style>
 </head>
 <body>
-  <div class="dashboard">
-    <div class="tile" onclick="openChart('Bồn Oxy 1', '%')">
-      <h3>BỒN OXY 1</h3>
-      <p class="value" id="oxy1">32.23</p>
-      <span>%</span>
-    </div>
-    <div class="tile" onclick="openChart('Bồn Oxy 2', '%')">
-      <h3>BỒN OXY 2</h3>
-      <p class="value" id="oxy2">0.00</p>
-      <span>%</span>
-    </div>
-    <div class="tile" onclick="openChart('Oxy', 'BAR')">
-      <h3>OXY</h3>
-      <p class="value" id="oxy">5.51</p>
-      <span>BAR</span>
-    </div>
-    <div class="tile" onclick="openChart('Khí Hút - VAC', 'mmHg')">
-      <h3>KHÍ HÚT - VAC</h3>
-      <p class="value" id="vac">0.00</p>
-      <span>mmHg</span>
-    </div>
-    <div class="tile" onclick="openChart('Khí Nén - AIR4', 'BAR')">
-      <h3>KHÍ NÉN - AIR4</h3>
-      <p class="value" id="air4">-0.00</p>
-      <span>BAR</span>
-    </div>
-    <div class="tile" onclick="openChart('Khí Nén - AIR7', 'BAR')">
-      <h3>KHÍ NÉN - AIR7</h3>
-      <p class="value" id="air7">9.81</p>
-      <span>BAR</span>
-    </div>
-  </div>
+    <figure class="highcharts-figure">
+        <div id="container"></div>
+        <p class="highcharts-description">
+            Chart showing sensor1s data updating every second.
+        </p>
+        <button id="exportButton">Export to Excel</button>
+    </figure>
 
-  <!-- Modal hiển thị biểu đồ -->
-  <div id="chartModal" class="modal">
-    <div class="modal-content">
-      <span class="close" onclick="closeChart()">&times;</span>
-      <h2 id="chartTitle"></h2>
+    <input type="checkbox" id="sensor1"></input>
+    <script>
+        // Era Widget initialization
+        const eraWidget = new EraWidget();
+        let config = null;
+        let sensor1Value = 0; // Khởi tạo giá trị giá trị mặc định
+        const dataBuffer = [];
 
-      <!-- Nút chọn chế độ -->
-      <div class="mode-select">
-        <label><input type="radio" name="mode" value="realtime" checked onchange="switchMode()"> Realtime</label>
-        <label><input type="radio" name="mode" value="history" onchange="switchMode()"> Lịch sử</label>
-      </div>
+        eraWidget.onConfiguration((configuration) => {
+            config = configuration.realtime_configs[0];
+        });
 
-      <!-- Chọn khoảng thời gian (tùy ý) -->
-      <div class="time-range" id="timeRangeBox" style="display:none;">
-        <label>Từ: <input type="datetime-local" id="startTime"></label>
-        <label>Đến: <input type="datetime-local" id="endTime"></label>
-        <button onclick="loadHistory()">Xem dữ liệu</button>
-      </div>
+        eraWidget.onValues((values) => {
+            const input = document.getElementById('sensor1');
+            sensor1Value = values[config.id].value; // Giả sử values[config.id].value là giá trị thực tế
+            input.checked = values[config.id].value > 0; // Đặt trạng thái của checkbox dựa trên giá trị
+        });
 
-      <canvas id="realtimeChart" height="100"></canvas>
-    </div>
-  </div>
+        eraWidget.ready();
 
-  <script src="script.js"></script>
+        // Existing Highcharts code
+        const onChartLoad = function () {
+            const chart = this,
+                series = chart.series[0];
+
+            setInterval(function () {
+                const x = (new Date()).getTime(), // thời gian hiện tại
+                    y = sensor1Value; // Giá trị giá trị thực tế
+
+                series.addPoint([x, y], true, true);
+                dataBuffer.push([x, y]);
+
+                // Giới hạn bộ đệm dữ liệu trong 30 phút (1800 giây)
+                const thirtyMinutesAgo = x - 1800 * 1000;
+                while (dataBuffer.length > 0 && dataBuffer[0][0] < thirtyMinutesAgo) {
+                    dataBuffer.shift();
+                }
+            }, 1000);
+        };
+
+        // Create the initial data
+        const data = (function () {
+            const data = [];
+            const time = (new Date().getTime());
+
+            for (let i = -19; i <= 0; i += 1) {
+                data.push({
+                    x: time + i * 1000,
+                    y: 0 // Giá trị mặc định cho dữ liệu ban đầu
+                });
+            }
+            return data;
+        }());
+
+        Highcharts.chart('container', {
+            chart: {
+                type: 'areaspline',
+                events: {
+                    load: onChartLoad
+                }
+            },
+
+            time: {
+                useUTC: false
+            },
+
+            title: {
+                text: 'Live sensor1 Data'
+            },
+
+            accessibility: {
+                announceNewData: {
+                    enabled: true,
+                    minAnnounceInterval: 15000,
+                    announcementFormatter: function (allSeries, newSeries, newPoint) {
+                        if (newPoint) {
+                            return 'New point added. Value: ' + newPoint.y;
+                        }
+                        return false;
+                    }
+                }
+            },
+
+            xAxis: {
+                type: 'datetime', // Trục X là thời gian thực
+                tickPixelInterval: 150,
+                maxPadding: 0.1
+            },
+
+            yAxis: {
+                title: {
+                    text: 'sensor1'
+                },
+                min: 0, // Giá trị tối thiểu của trục Y
+                max: 130, // Giá trị tối đa của trục Y
+                tickInterval: 10, // Khoảng cách giữa các dấu vạch trên trục Y
+                plotLines: [
+                    {
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }
+                ]
+            },
+
+            tooltip: {
+                headerFormat: '<b>{series.name}</b><br/>',
+                pointFormat: '{point.x:%Y-%m-%d %H:%M:%S}<br/>{point.y:.2f}'
+            },
+
+            legend: {
+                enabled: false
+            },
+
+            exporting: {
+                enabled: false
+            },
+
+            series: [
+                {
+                    name: 'sensor1s',
+                    lineWidth: 2,
+                    color: Highcharts.getOptions().colors[6],
+                    data,
+                    fillColor: {
+                        linearGradient: {
+                            x1: 0,
+                            x2: 0,
+                            y1: 0,
+                            y2: 1
+                        },
+                        stops: [
+                            [0, Highcharts.getOptions().colors[6]],
+                            [1, Highcharts.color(Highcharts.getOptions().colors[6]).setOpacity(0).get('rgba')]
+                        ]
+                    }
+                } 
+            ]
+        });
+
+        document.getElementById('exportButton').addEventListener('click', function () {
+            const ws = XLSX.utils.json_to_sheet(dataBuffer.map(point => ({
+                Time: (new Date(point[0])).toLocaleString(),
+                sensor1: point[1]
+            })));
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'sensor1s');
+            XLSX.writeFile(wb, 'sensor1_data.xlsx');
+        });
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 </body>
 </html>
