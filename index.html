@@ -12,19 +12,39 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 <style>
     body { font-family: Arial, sans-serif; }
-    .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px; }
-    .cell { border: 1px solid #ccc; padding: 10px; height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; background: #f7f7f7; }
+    .dashboard { 
+        display: flex; 
+        flex-direction: column; /* xếp dọc */
+        gap: 15px; 
+        margin: 10px auto; 
+        width: 200px; /* độ rộng ô */
+    }
+    .cell { 
+        border: 1px solid #ccc; 
+        padding: 15px; 
+        height: 100px; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center; 
+        align-items: center; 
+        cursor: pointer; 
+        background: #f7f7f7; 
+        border-radius: 15px; /* bo tròn ô */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .cell:hover {
+        transform: scale(1.03);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
     .cell h3 { margin: 5px 0; }
     .cell p { font-size: 1.2em; margin: 0; }
-    #chartModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-    #chartContent { background: #fff; padding: 20px; width: 90%; max-width: 1000px; height: 500px; position: relative; }
-    #closeChart { position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 20px; }
-    #exportButton { margin-top: 10px; }
 </style>
+
 </head>
 <body>
 
-<h2>Multi-Sensor Dashboard</h2>
+<h2>Giám sát hệ thống</h2>
 <div class="dashboard" id="dashboard">
     <!-- Các ô sẽ được tạo tự động bằng JS -->
 </div>
