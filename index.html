@@ -2,15 +2,16 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Oxy</title>
+  <title>Dashboard Khí Y Tế</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
 </head>
 <body>
   <div class="dashboard">
     <div class="tile" onclick="openChart('oxy1', 'Bồn Oxy 1', '%')">
       <h3>BỒN OXY 1</h3>
-      <p class="value" id="oxy1">0.00</p>
+      <p class="value" id="oxy1">32.23</p>
       <span>%</span>
     </div>
     <div class="tile" onclick="openChart('oxy2', 'Bồn Oxy 2', '%')">
@@ -20,7 +21,7 @@
     </div>
     <div class="tile" onclick="openChart('oxy', 'Oxy', 'BAR')">
       <h3>OXY</h3>
-      <p class="value" id="oxy">0.00</p>
+      <p class="value" id="oxy">5.51</p>
       <span>BAR</span>
     </div>
     <div class="tile" onclick="openChart('vac', 'Khí Hút - VAC', 'mmHg')">
@@ -30,22 +31,36 @@
     </div>
     <div class="tile" onclick="openChart('air4', 'Khí Nén - AIR4', 'BAR')">
       <h3>KHÍ NÉN - AIR4</h3>
-      <p class="value" id="air4">0.00</p>
+      <p class="value" id="air4">-0.00</p>
       <span>BAR</span>
     </div>
     <div class="tile" onclick="openChart('air7', 'Khí Nén - AIR7', 'BAR')">
       <h3>KHÍ NÉN - AIR7</h3>
-      <p class="value" id="air7">0.00</p>
+      <p class="value" id="air7">9.81</p>
       <span>BAR</span>
     </div>
   </div>
 
-  <!-- Modal Chart -->
-  <div class="modal" id="chartModal">
+  <!-- Modal hiển thị biểu đồ -->
+  <div id="chartModal" class="modal">
     <div class="modal-content">
       <span class="close" onclick="closeChart()">&times;</span>
       <h2 id="chartTitle"></h2>
-      <canvas id="myChart"></canvas>
+
+      <!-- Nút chọn chế độ -->
+      <div class="mode-select">
+        <label><input type="radio" name="mode" value="realtime" checked onchange="switchMode()"> Realtime</label>
+        <label><input type="radio" name="mode" value="history" onchange="switchMode()"> Lịch sử</label>
+      </div>
+
+      <!-- Chọn khoảng thời gian (tùy ý) -->
+      <div class="time-range" id="timeRangeBox" style="display:none;">
+        <label>Từ: <input type="datetime-local" id="startTime"></label>
+        <label>Đến: <input type="datetime-local" id="endTime"></label>
+        <button onclick="loadHistory()">Xem dữ liệu</button>
+      </div>
+
+      <canvas id="realtimeChart" height="100"></canvas>
     </div>
   </div>
 
