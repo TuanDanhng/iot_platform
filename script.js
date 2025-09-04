@@ -149,7 +149,7 @@ let realtimeInterval = null;
 
 // ---------------- EraWidget ----------------
 const eraWidget = new EraWidget();
-let configMap = {}; // lưu config theo thứ tự
+let configMap = {};    // lưu config từng sensor
 let sensorData = {
   oxy1: 0,
   oxy2: 0,
@@ -167,50 +167,47 @@ let sensorBuffer = {
   air7: []
 };
 
-// ---------------- Khởi tạo EraWidget ----------------
-eraWidget.init({
-  needRealtimeConfigs: true,
-  needHistoryConfigs: true,
-  needActions: true,
+// ---------------- Lấy config từ Era ----------------
+eraWidget.onConfiguration((configuration) => {
+  configMap.oxy1 = configuration.realtime_configs[0];
+  configMap.oxy2 = configuration.realtime_configs[1];
+  configMap.oxy  = configuration.realtime_configs[2];
+  configMap.vac  = configuration.realtime_configs[3];
+  configMap.air4 = configuration.realtime_configs[4];
+  configMap.air7 = configuration.realtime_configs[5];
 
-  onConfiguration: (configuration) => {
-    // Gán config theo thứ tự (iframe with config)
-    configMap.oxy1 = configuration.realtime_configs[0];
-    configMap.oxy2 = configuration.realtime_configs[1];
-    configMap.oxy  = configuration.realtime_configs[2];
-    configMap.vac  = configuration.realtime_configs[3];
-    configMap.air4 = configuration.realtime_configs[4];
-    configMap.air7 = configuration.realtime_configs[5];
+  // Load history khi có config
+  loadHistory();
+});
 
-    // Load history khi có config
-    loadHistory();
-  },
+// ---------------- Nhận giá trị realtime ----------------
+eraWidget.onValues((values) => {
+  Object.keys(configMap).forEach(key => {
+    const cfg = configMap[key];
+    if (cfg && values[cfg.id]) {
+      const val = values[cfg.id].value;
+      sensorData[key] = val;
 
-  onValues: (values) => {
-    // Cập nhật dữ liệu và buffer từng sensor
-    Object.keys(configMap).forEach(key => {
-      const cfg = configMap[key];
-      if (cfg && values[cfg.id]) {
-        const val = values[cfg.id].value;
-        sensorData[key] = val;
+      // Lưu vào buffer chart
+      sensorBuffer[key].push(val);
+      if (sensorBuffer[key].length > 50) sensorBuffer[key].shift();
 
-        // Lưu vào buffer chart
-        sensorBuffer[key].push(val);
-        if (sensorBuffer[key].length > 50) sensorBuffer[key].shift();
-
-        // Cập nhật giá trị trên dashboard
-        const el = document.getElementById(key);
-        if (el) el.textContent = val.toFixed(2);
-      }
-    });
-
-    // Nếu đang mở chart cho sensor nào, update chart ngay
-    if (chartLabel && mode === 'realtime') {
-      const data = sensorBuffer[chartLabel] ? [...sensorBuffer[chartLabel]] : [0];
-      updateChart(data);
+      // Cập nhật giá trị trên dashboard
+      const el = document.getElementById(key);
+      if (el) el.textContent = val.toFixed(2);
     }
+  });
+
+  // Nếu đang mở chart cho sensor nào, update chart ngay
+  if (chartLabel && mode === 'realtime') {
+    const data = sensorBuffer[chartLabel] ? [...sensorBuffer[chartLabel]] : [0];
+    updateChart(data);
   }
 });
+
+// ---------------- Khởi động EraWidget ----------------
+eraWidget.ready();
+
 
 // ---------------- Chart ----------------
 function openChart(label, unit='') {
