@@ -1,12 +1,13 @@
 body {
   font-family: Arial, sans-serif;
   margin: 0;
-  background: #f4f4f4;
+  padding: 0;
+  background: #f4f4f9;
 }
 
 .dashboard {
-  display: flex;
-  flex-direction: column; /* luôn xếp dọc */
+  display: grid;
+  grid-template-columns: 1fr; /* luôn 1 cột */
   gap: 20px;
   padding: 20px;
   box-sizing: border-box;
@@ -14,76 +15,52 @@ body {
 
 .tile {
   background: white;
-  border-radius: 10px;
-  padding: 15px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
   cursor: pointer;
   transition: transform 0.2s;
 }
 
 .tile:hover {
-  transform: scale(1.05);
+  transform: scale(1.03);
 }
 
 .tile h3 {
-  margin: 0;
-  font-size: 16px;
-  color: #333;
+  margin: 0 0 10px;
 }
 
-.tile .value {
-  font-size: 28px;
+.value {
+  font-size: 24px;
   font-weight: bold;
-  margin: 10px 0;
+  color: #007bff;
 }
 
-.tile span {
-  font-size: 14px;
-  color: #777;
-}
-
-/* Modal */
+/* Modal chart */
 .modal {
   display: none;
   position: fixed;
-  z-index: 999;
-  padding-top: 60px;
+  z-index: 10;
   left: 0; top: 0;
   width: 100%; height: 100%;
-  overflow: auto;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
+  justify-content: center;
+  align-items: center;
 }
 
 .modal-content {
-  background: #fff;
-  margin: auto;
+  background: white;
   padding: 20px;
-  border-radius: 8px;
-  width: 80%;
+  border-radius: 12px;
+  width: 90%;
   max-width: 800px;
+  position: relative;
 }
 
 .close {
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
+  position: absolute;
+  right: 15px;
+  top: 10px;
+  font-size: 20px;
   cursor: pointer;
-}
-
-.close:hover {
-  color: red;
-}
-
-.mode-select {
-  margin-bottom: 10px;
-}
-
-.time-range {
-  margin-bottom: 15px;
-  text-align: left;
-}
-
-.time-range label {
-  margin-right: 10px;
 }
