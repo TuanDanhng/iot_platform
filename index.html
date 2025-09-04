@@ -1,25 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Multi-Sensor Dashboard</title>
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/export-data.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://www.unpkg.com/@eohjsc/era-widget@1.0.14/src/index.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+<style>
+    body { font-family: Arial, sans-serif; }
+    .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 10px; }
+    .cell { border: 1px solid #ccc; padding: 10px; height: 150px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; background: #f7f7f7; }
+    .cell h3 { margin: 5px 0; }
+    .cell p { font-size: 1.2em; margin: 0; }
+    #chartModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+    #chartContent { background: #fff; padding: 20px; width: 90%; max-width: 1000px; height: 500px; position: relative; }
+    #closeChart { position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 20px; }
+    #exportButton { margin-top: 10px; }
+</style>
+</head>
 <body>
-    <div id="dashboard" style="display: flex; flex-direction: column; gap: 10px; max-width: 300px; margin: 20px;">
-        <div class="dashboard-cell" data-sensor="sensor1">Sensor 1</div>
-        <div class="dashboard-cell" data-sensor="sensor2">Sensor 2</div>
-        <div class="dashboard-cell" data-sensor="sensor3">Sensor 3</div>
-        <div class="dashboard-cell" data-sensor="sensor4">Sensor 4</div>
-        <div class="dashboard-cell" data-sensor="sensor5">Sensor 5</div>
-        <div class="dashboard-cell" data-sensor="sensor6">Sensor 6</div>
-    </div>
 
-    <!-- Modal để hiển thị chart -->
-    <div id="chartModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
-         background: rgba(0,0,0,0.5); justify-content:center; align-items:center;">
-        <div style="background:#fff; padding:20px; width:90%; max-width:1000px; height:80%; overflow:auto; position:relative;">
-            <span id="closeModal" style="position:absolute; top:10px; right:20px; cursor:pointer; font-size:24px;">&times;</span>
-            <h2 id="chartTitle"></h2>
-            <div>
-                <label>From: <input type="datetime-local" id="startTime"></label>
-                <label>To: <input type="datetime-local" id="endTime"></label>
-                <button id="loadHistory">Load History</button>
-            </div>
-            <div id="chartContainer" style="height:400px; margin-top:20px;"></div>
+<h2>Multi-Sensor Dashboard</h2>
+<div class="dashboard" id="dashboard">
+    <!-- Các ô sẽ được tạo tự động bằng JS -->
+</div>
+
+<div id="chartModal">
+    <div id="chartContent">
+        <span id="closeChart">✖</span>
+        <div id="chartContainer" style="height: 100%; width: 100%;"></div>
+        <div>
+            <label for="timeRange">Show last: </label>
+            <select id="timeRange">
+                <option value="60">1 min</option>
+                <option value="300">5 min</option>
+                <option value="900">15 min</option>
+                <option value="1800" selected>30 min</option>
+                <option value="3600">1 hour</option>
+            </select>
         </div>
+        <button id="exportChart">Export to Excel</button>
     </div>
+</div>
+
+<script>
+const eraWidget = new EraWidget();
+const sensorCount = 6;
+const sensorConfigs = []; // lưu cấu hình từng sensor
+const sensorValues = Array(sensorCount).fill(0); // giá trị realtime
+const sensorBuffers = Array.from({length: sensorCount}, () => []); // buffer dữ liệu
+
+// Tạo dashboard
+const dashboard = document.getElementById('dashboard');
+for (let i = 0; i < sensorCount; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.id = 'sensorCell' + i;
+    cell.innerHTML = `<h3>Sensor ${i+1}</h3><p>0</p>`;
+    dashboard.appendChild(cell);
+
+    cell.addEventListener('click', () => openChart(i));
+}
+
+// Nhận config từ ERA Widget
+eraWidget.onConfiguration(config => {
+    config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
+        sensorConfigs[idx] = cfg;
+    });
+});
+
+// Nhận dữ liệu realtime
+eraWidget.onValues(values => {
+    sensorConfigs.forEach((cfg, idx) => {
+        if (!cfg) return;
+        const val = values[cfg.id]?.value ?? 0;
+        sensorValues[idx] = val;
+
+        // Cập nhật ô dashboard
+        const cell = document.getElementById('sensorCell'+idx);
+        cell.querySelector('p').innerText = val.toFixed(2);
+
+        // Lưu vào buffer
+        const t = (new Date()).getTime();
+        sensorBuffers[idx].push([t, val]);
+        const maxBuffer = 3600*1000; // lưu tối đa 1 giờ
+        while (sensorBuffers[idx].length > 0 && sensorBuffers[idx][0][0] < t - maxBuffer) {
+            sensorBuffers[idx].shift();
+        }
+    });
+});
+
+eraWidget.ready();
+
+// Chart modal
+let chartInstance = null;
+let currentSensor = 0;
+const modal = document.getElementById('chartModal');
+const chartContainer = document.getElementById('chartContainer');
+document.getElementById('closeChart').addEventListener('click', () => modal.style.display='none');
+
+function openChart(sensorIndex) {
+    currentSensor = sensorIndex;
+    modal.style.display = 'flex';
+    renderChart();
+}
+
+document.getElementById('timeRange').addEventListener('change', renderChart);
+
+function renderChart() {
+    const rangeSec = parseInt(document.getElementById('timeRange').value);
+    const now = (new Date()).getTime();
+    const data = sensorBuffers[currentSensor].filter(p => p[0] >= now - rangeSec*1000);
+
+    if (chartInstance) chartInstance.destroy();
+
+    chartInstance = Highcharts.chart(chartContainer, {
+        chart: { type: 'areaspline' },
+        title: { text: `Sensor ${currentSensor+1} Data` },
+        xAxis: { type: 'datetime' },
+        yAxis: { title: { text: 'Value' } },
+        tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
+        series: [{
+            name: 'Value',
+            data,
+            lineWidth: 2,
+            fillOpacity: 0.3
+        }]
+    });
+}
+
+// Export dữ liệu chart
+document.getElementById('exportChart').addEventListener('click', () => {
+    const ws = XLSX.utils.json_to_sheet(sensorBuffers[currentSensor].map(p => ({
+        Time: (new Date(p[0])).toLocaleString(),
+        Value: p[1]
+    })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, `Sensor${currentSensor+1}`);
+    XLSX.writeFile(wb, `Sensor${currentSensor+1}_data.xlsx`);
+});
+</script>
+
 </body>
+</html>
