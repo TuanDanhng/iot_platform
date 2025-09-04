@@ -176,6 +176,7 @@ eraWidget.init({
   onConfiguration: (configuration) => {
     // Gán config theo thứ tự
     configMap.oxy1 = configuration.realtime_configs[0];
+    println('configMap.oxy1', configMap.oxy1);
     configMap.oxy2 = configuration.realtime_configs[1];
     configMap.oxy  = configuration.realtime_configs[2];
     configMap.vac  = configuration.realtime_configs[3];
