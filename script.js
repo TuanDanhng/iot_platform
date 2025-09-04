@@ -196,6 +196,7 @@ eraWidget.init({
 
         // Lưu vào buffer chart
         sensorBuffer[key].push(val);
+        console.log(val);
         if (sensorBuffer[key].length > 50) sensorBuffer[key].shift();
 
         // Cập nhật giá trị trên dashboard
