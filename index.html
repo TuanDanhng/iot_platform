@@ -18,11 +18,11 @@ body { font-family: Arial, sans-serif; }
 h2 { text-align: center; margin-top: 20px; }
 
 .dashboard { 
-    display: flex; 
-    flex-direction: column; 
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* 2 cột */
     gap: 15px; 
     margin: 20px auto; 
-    width: 200px;
+    width: 450px; /* chỉnh cho vừa 2 ô */
 }
 .cell { 
     border: 1px solid #ccc; 
@@ -38,6 +38,7 @@ h2 { text-align: center; margin-top: 20px; }
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     transition: transform 0.2s, box-shadow 0.2s;
 }
+
 .cell:hover {
     transform: scale(1.03);
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
