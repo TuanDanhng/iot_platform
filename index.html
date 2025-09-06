@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="vi">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Multi-Sensor Dashboard</title>
+<title>Giám sát hệ thống</title>
 
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
@@ -14,10 +14,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 
 <style>
-body { font-family: Arial, sans-serif; }
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
 h2 { text-align: center; margin-top: 20px; }
 
-/* Dashboard hiển thị 2 cột trên PC */
+/* Luôn 2 cột (PC & mobile đều 2 cột × 3 hàng) */
 .dashboard { 
     display: grid;
     grid-template-columns: repeat(2, 1fr); 
@@ -26,14 +26,6 @@ h2 { text-align: center; margin-top: 20px; }
     max-width: 600px; 
     width: 100%; 
     padding: 0 10px; 
-}
-
-/* Khi màn hình nhỏ (<600px) thì chuyển thành 1 cột */
-@media (max-width: 600px) {
-    .dashboard {
-        grid-template-columns: 1fr;
-        max-width: 100%;
-    }
 }
 
 .cell { 
@@ -49,14 +41,16 @@ h2 { text-align: center; margin-top: 20px; }
     border-radius: 15px; 
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     transition: transform 0.2s, box-shadow 0.2s;
+    font-size: 0.9em;
 }
 .cell:hover {
     transform: scale(1.03);
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
-.cell h3 { margin: 5px 0; }
+.cell h3 { margin: 5px 0; font-size: 1em; }
 .cell p { font-size: 1.2em; margin: 0; }
 
+/* Modal chart */
 #chartModal {
     display: none;
     position: fixed;
@@ -67,15 +61,13 @@ h2 { text-align: center; margin-top: 20px; }
     align-items: center;
     z-index: 1000;
 }
-#chartModal.show {
-    display: flex;
-}
+#chartModal.show { display: flex; }
 #chartContent {
     background: #fff;
     padding: 20px;
     width: 95%;
     max-width: 1000px;
-    height: 80vh; 
+    height: 80vh;
     position: relative;
     border-radius: 15px;
     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
@@ -120,22 +112,17 @@ h2 { text-align: center; margin-top: 20px; }
 </div>
 
 <script>
-// Thiết lập Highcharts dùng giờ Việt Nam (UTC+7)
-Highcharts.setOptions({
-    time: {
-        timezoneOffset: -420  // -7h * 60 phút
-    }
-});
+// Tên sensor
+const sensorNames = [
+    "oxy bồn 1",
+    "oxy bồn 2",
+    "OXY",
+    "khí hút-VAC",
+    "khí nén - air4",
+    "khí nén - air7"
+];
 
 const eraWidget = new EraWidget();
-const sensorNames = [
-    "Oxy bồn 1",
-    "Oxy bồn 2",
-    "OXY",
-    "Khí hút - VAC",
-    "Khí nén - Air4",
-    "Khí nén - Air7"
-];
 const sensorCount = sensorNames.length;
 const sensorConfigs = [];
 const sensorValues = Array(sensorCount).fill(0);
@@ -206,6 +193,13 @@ function renderChart() {
     if (chartInstance) chartInstance.destroy();
     clearInterval(chartInterval);
 
+    // Thiết lập múi giờ VN (GMT+7)
+    Highcharts.setOptions({
+        time: {
+            timezoneOffset: -7 * 60
+        }
+    });
+
     if (mode === 'realtime') {
         chartInstance = Highcharts.chart(chartContainer, {
             chart: { type: 'areaspline' },
@@ -237,11 +231,11 @@ function renderChart() {
 // Export dữ liệu chart
 document.getElementById('exportChart').addEventListener('click', () => {
     const ws = XLSX.utils.json_to_sheet(sensorBuffers[currentSensor].map(p => ({
-        Time: (new Date(p[0])).toLocaleString("vi-VN"), // hiển thị giờ VN
+        Time: (new Date(p[0])).toLocaleString("vi-VN"),
         Value: p[1]
     })));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, sensorNames[currentSensor]);
+    XLSX.utils.book_append_sheet(wb, ws, `${sensorNames[currentSensor]}`);
     XLSX.writeFile(wb, `${sensorNames[currentSensor]}_data.xlsx`);
 });
 </script>
