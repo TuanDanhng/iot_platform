@@ -160,11 +160,8 @@ eraWidget.onValues(values => {
         }
     });
 });
-    eraWidget.init({
-      mobileHeight: 500 /* Thiết lập chiều cao hiển thị trên mobile app E-Ra, mặc đinh 300px */,
-        element: document.getElementById('dashboard'),
-    });
 
+eraWidget.ready();
 
 // Modal chart
 let chartInstance = null;
