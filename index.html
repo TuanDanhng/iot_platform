@@ -138,6 +138,9 @@ for (let i = 0; i < sensorCount; i++) {
     cell.addEventListener('click', () => openChart(i));
 }
 
+eraWidget.init({
+    mobileHight: 500,
+});
 eraWidget.onConfiguration(config => {
     config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
         sensorConfigs[idx] = cfg;
@@ -160,7 +163,7 @@ eraWidget.onValues(values => {
         }
     });
 });
-mobileHeight(500);
+
 eraWidget.ready();
 
 // Modal chart
