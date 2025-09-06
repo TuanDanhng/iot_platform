@@ -1,4 +1,4 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
@@ -138,35 +138,31 @@ for (let i = 0; i < sensorCount; i++) {
     cell.addEventListener('click', () => openChart(i));
 }
 
+// ✅ Thay cho eraWidget.ready()
 eraWidget.init({
-    mobileHight: 500,
-    ElementId: 'dashboard',
+    mobileHeight: 500, // Chiều cao widget khi mở trong app E-Ra
+    onConfiguration: (config) => {
+        config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
+            sensorConfigs[idx] = cfg;
+        });
+    },
+    onValues: (values) => {
+        sensorConfigs.forEach((cfg, idx) => {
+            if (!cfg) return;
+            const val = values[cfg.id]?.value ?? 0;
+            sensorValues[idx] = val;
+            const cell = document.getElementById('sensorCell'+idx);
+            cell.querySelector('p').innerText = val.toFixed(2);
+
+            const t = (new Date()).getTime();
+            sensorBuffers[idx].push([t, val]);
+            const maxBuffer = 3600*1000;
+            while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
+                sensorBuffers[idx].shift();
+            }
+        });
+    }
 });
-
-eraWidget.onConfiguration(config => {
-    config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
-        sensorConfigs[idx] = cfg;
-    });
-});
-
-eraWidget.onValues(values => {
-    sensorConfigs.forEach((cfg, idx) => {
-        if (!cfg) return;
-        const val = values[cfg.id]?.value ?? 0;
-        sensorValues[idx] = val;
-        const cell = document.getElementById('sensorCell'+idx);
-        cell.querySelector('p').innerText = val.toFixed(2);
-
-        const t = (new Date()).getTime();
-        sensorBuffers[idx].push([t, val]);
-        const maxBuffer = 3600*1000;
-        while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
-            sensorBuffers[idx].shift();
-        }
-    });
-});
-
-eraWidget.ready();
 
 // Modal chart
 let chartInstance = null;
@@ -246,139 +242,4 @@ document.getElementById('exportChart').addEventListener('click', () => {
 </script>
 
 </body>
-</html> -->
-
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
-    <script src="https://code.highcharts.com/stock/highstock.js"></script>
-    <script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
-  </head>
-  <body>
-    <div id="container" style="height: 500px;"></div>
-  </body>
-  <script>
-    // Some data from server
-    let data = (function () {
-      var data = [],
-        time = new Date().getTime(),
-        i;
-
-      for (i = -3600; i <= 0; i += 1) {
-        data.push([time + i * 1000, Math.random()]);
-      }
-      return data;
-    })();
-
-    // Request from server seting all data
-    const dataFromServer = data.slice();
-    setInterval(function () {
-      chart.series[0].setData(dataFromServer);
-    }, 5000);
-
-    const chart = Highcharts.stockChart("container", {
-      chart: {
-        events: {
-          load: function () {
-            var series = this.series[0];
-            setInterval(function () {
-              const lastPoint =
-                series.options.data[series.options.data.length - 1];
-              var x = lastPoint[0] + 1000,
-                y = null;
-
-              series.addPoint([x, y]);
-
-              // Simulate adding points on server
-              dataFromServer.push([x, Math.random()]);
-            }, 1000);
-          },
-        },
-      },
-
-      rangeSelector: {
-        selected: 0,
-        buttonTheme: {
-          width: 50,
-        },
-        buttons: [
-          {
-            type: "minute",
-            count: 5,
-            text: "5 min",
-            title: "View 5 min",
-          },
-          {
-            type: "minute",
-            count: 10,
-            text: "10 min",
-            title: "View 10 min",
-          },
-          {
-            type: "minute",
-            count: 15,
-            text: "15 min",
-            title: "View 15 min",
-          },
-          {
-            type: "minute",
-            count: 30,
-            text: "30 min",
-            title: "View 30 min",
-          },
-          {
-            type: "minute",
-            count: 60,
-            text: "60 min",
-            title: "View 60 min",
-          },
-        ],
-      },
-
-      plotOptions: {
-        series: {
-          turboThreshold: 10000,
-        },
-      },
-
-      navigator: {
-        enabled: false,
-      },
-
-      series: [
-        {
-          data: data,
-        },
-      ],
-    });
-  </script>
-  <script>
-    let configLed = null,
-      newStatusLed = null,
-      actions =
-        []; /* Khởi tạo các biến dùng để lưu cấu hình và trạng thái đèn LED  */
-
-    /* Tạo đối tượng EraWidget và gọi hàm khởi tạo với các cấu hình cần thiết */
-    const eraWidget = new EraWidget();
-    eraWidget.init({
-      mobileHeight: 500 /* Thiết lập chiều cao hiển thị trên mobile app E-Ra, mặc đinh 300px */,
-
-      /* Hàm callback được gọi khi có cấu hình được nhận từ server */
-      onConfiguration: (configuration) => {
-        /* Cập nhật cấu hình đèn LED từ cấu hình thời gian thực đầu tiên */
-        configLed = configuration.realtime_configs[0];
-        actions =
-          configuration.actions; /* Lưu danh sách các hành động được nhận */
-      },
-
-      /* Hàm callback được gọi khi nhận giá trị mới từ server */
-      onValues: (values) => {
-        /* Lấy trạng thái hiện tại của đèn LED từ giá trị của cấu hình */
-        const stateLed = values[configLed.id].value;
-      },
-    });
-  </script>
 </html>
