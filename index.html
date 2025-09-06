@@ -123,6 +123,12 @@ const sensorNames = [
 ];
 
 const eraWidget = new EraWidget();
+
+eraWidget.init({
+    element: document.body,
+    mobileHeight: window.innerHeight * 2
+});
+
 const sensorCount = sensorNames.length;
 const sensorConfigs = [];
 const sensorValues = Array(sensorCount).fill(0);
