@@ -138,30 +138,66 @@ for (let i = 0; i < sensorCount; i++) {
     cell.addEventListener('click', () => openChart(i));
 }
 
-eraWidget.onConfiguration(config => {
-    config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
-        sensorConfigs[idx] = cfg;
-    });
+eraWidget.init({
+    mobileHeight: 500, // Thiết lập chiều cao hiển thị trên mobile app E-Ra (mặc định 300px)
+
+    // Hàm callback được gọi khi có cấu hình được nhận từ server
+    onConfiguration: (config) => {
+        config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
+            sensorConfigs[idx] = cfg;
+        });
+    },
+
+    // Hàm callback được gọi khi nhận giá trị mới từ server
+    onValues: (values) => {
+        sensorConfigs.forEach((cfg, idx) => {
+            if (!cfg) return;
+            const val = values[cfg.id]?.value ?? 0;
+            sensorValues[idx] = val;
+
+            // Cập nhật UI
+            const cell = document.getElementById('sensorCell'+idx);
+            cell.querySelector('p').innerText = val.toFixed(2);
+
+            // Lưu dữ liệu vào buffer để hiển thị chart lịch sử
+            const t = (new Date()).getTime();
+            sensorBuffers[idx].push([t, val]);
+            const maxBuffer = 3600*1000;
+            while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
+                sensorBuffers[idx].shift();
+            }
+        });
+    }
 });
 
-eraWidget.onValues(values => {
-    sensorConfigs.forEach((cfg, idx) => {
-        if (!cfg) return;
-        const val = values[cfg.id]?.value ?? 0;
-        sensorValues[idx] = val;
-        const cell = document.getElementById('sensorCell'+idx);
-        cell.querySelector('p').innerText = val.toFixed(2);
+// eraWidget.onConfiguration(config => {
+//     config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
+//         sensorConfigs[idx] = cfg;
+//     });
+// });
 
-        const t = (new Date()).getTime();
-        sensorBuffers[idx].push([t, val]);
-        const maxBuffer = 3600*1000;
-        while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
-            sensorBuffers[idx].shift();
-        }
-    });
-});
+// eraWidget.onValues(values => {
+//     sensorConfigs.forEach((cfg, idx) => {
+//         if (!cfg) return;
+//         const val = values[cfg.id]?.value ?? 0;
+//         sensorValues[idx] = val;
+//         const cell = document.getElementById('sensorCell'+idx);
+//         cell.querySelector('p').innerText = val.toFixed(2);
 
-eraWidget.ready();
+//         const t = (new Date()).getTime();
+//         sensorBuffers[idx].push([t, val]);
+//         const maxBuffer = 3600*1000;
+//         while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
+//             sensorBuffers[idx].shift();
+//         }
+//     });
+// });
+
+// eraWidget.ready();
+
+
+
+
 
 // Modal chart
 let chartInstance = null;
