@@ -123,10 +123,6 @@ const sensorNames = [
 ];
 
 const eraWidget = new EraWidget();
-
-
-
-
 const sensorCount = sensorNames.length;
 const sensorConfigs = [];
 const sensorValues = Array(sensorCount).fill(0);
@@ -166,7 +162,7 @@ eraWidget.onValues(values => {
 });
 
 eraWidget.ready();
-mobileHeight(5000);
+mobileHeight(1000);
 // Modal chart
 let chartInstance = null;
 let currentSensor = 0;
