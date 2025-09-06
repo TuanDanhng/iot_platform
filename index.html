@@ -22,7 +22,7 @@ h2 { text-align: center; margin-top: 20px; }
     grid-template-columns: repeat(2, 1fr); /* 2 cột */
     gap: 15px; 
     margin: 20px auto; 
-    width: 450px; /* chỉnh cho vừa 2 ô */
+    width: 450px; /* vừa 2 cột */
 }
 .cell { 
     border: 1px solid #ccc; 
@@ -38,7 +38,6 @@ h2 { text-align: center; margin-top: 20px; }
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     transition: transform 0.2s, box-shadow 0.2s;
 }
-
 .cell:hover {
     transform: scale(1.03);
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
@@ -110,7 +109,15 @@ h2 { text-align: center; margin-top: 20px; }
 
 <script>
 const eraWidget = new EraWidget();
-const sensorCount = 6;
+const sensorNames = [
+    "Oxy bồn 1",
+    "Oxy bồn 2",
+    "OXY",
+    "Khí hút - VAC",
+    "Khí nén - Air4",
+    "Khí nén - Air7"
+];
+const sensorCount = sensorNames.length;
 const sensorConfigs = [];
 const sensorValues = Array(sensorCount).fill(0);
 const sensorBuffers = Array.from({length: sensorCount}, () => []);
@@ -120,7 +127,7 @@ for (let i = 0; i < sensorCount; i++) {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.id = 'sensorCell' + i;
-    cell.innerHTML = `<h3>Sensor ${i+1}</h3><p>0</p>`;
+    cell.innerHTML = `<h3>${sensorNames[i]}</h3><p>0</p>`;
     dashboard.appendChild(cell);
     cell.addEventListener('click', () => openChart(i));
 }
@@ -181,10 +188,9 @@ function renderChart() {
     clearInterval(chartInterval);
 
     if (mode === 'realtime') {
-        // Vẽ chart realtime
         chartInstance = Highcharts.chart(chartContainer, {
             chart: { type: 'areaspline' },
-            title: { text: `Sensor ${currentSensor+1} Realtime` },
+            title: { text: `${sensorNames[currentSensor]} Realtime` },
             xAxis: { type: 'datetime' },
             yAxis: { title: { text: 'Value' } },
             tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
@@ -197,11 +203,10 @@ function renderChart() {
             chartInstance.series[0].addPoint([x, y], true, chartInstance.series[0].data.length>1800);
         }, 1000);
     } else {
-        // History
         const data = sensorBuffers[currentSensor].filter(p => p[0] >= now - rangeSec*1000);
         chartInstance = Highcharts.chart(chartContainer, {
             chart: { type: 'areaspline' },
-            title: { text: `Sensor ${currentSensor+1} History` },
+            title: { text: `${sensorNames[currentSensor]} History` },
             xAxis: { type: 'datetime' },
             yAxis: { title: { text: 'Value' } },
             tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
@@ -217,8 +222,8 @@ document.getElementById('exportChart').addEventListener('click', () => {
         Value: p[1]
     })));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, `Sensor${currentSensor+1}`);
-    XLSX.writeFile(wb, `Sensor${currentSensor+1}_data.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, sensorNames[currentSensor]);
+    XLSX.writeFile(wb, `${sensorNames[currentSensor]}_data.xlsx`);
 });
 </script>
 
