@@ -138,31 +138,33 @@ for (let i = 0; i < sensorCount; i++) {
     cell.addEventListener('click', () => openChart(i));
 }
 
-// ✅ Thay cho eraWidget.ready()
-eraWidget.init({
-    mobileHeight: 500, // Chiều cao widget khi mở trong app E-Ra
-    onConfiguration: (config) => {
-        config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
-            sensorConfigs[idx] = cfg;
-        });
-    },
-    onValues: (values) => {
-        sensorConfigs.forEach((cfg, idx) => {
-            if (!cfg) return;
-            const val = values[cfg.id]?.value ?? 0;
-            sensorValues[idx] = val;
-            const cell = document.getElementById('sensorCell'+idx);
-            cell.querySelector('p').innerText = val.toFixed(2);
-
-            const t = (new Date()).getTime();
-            sensorBuffers[idx].push([t, val]);
-            const maxBuffer = 3600*1000;
-            while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
-                sensorBuffers[idx].shift();
-            }
-        });
-    }
+eraWidget.onConfiguration(config => {
+    config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
+        sensorConfigs[idx] = cfg;
+    });
 });
+
+eraWidget.onValues(values => {
+    sensorConfigs.forEach((cfg, idx) => {
+        if (!cfg) return;
+        const val = values[cfg.id]?.value ?? 0;
+        sensorValues[idx] = val;
+        const cell = document.getElementById('sensorCell'+idx);
+        cell.querySelector('p').innerText = val.toFixed(2);
+
+        const t = (new Date()).getTime();
+        sensorBuffers[idx].push([t, val]);
+        const maxBuffer = 3600*1000;
+        while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
+            sensorBuffers[idx].shift();
+        }
+    });
+});
+    eraWidget.init({
+      mobileHeight: 500 /* Thiết lập chiều cao hiển thị trên mobile app E-Ra, mặc đinh 300px */,
+        element: document.getElementById('dashboard'),
+    });
+
 
 // Modal chart
 let chartInstance = null;
