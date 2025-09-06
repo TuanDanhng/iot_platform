@@ -125,9 +125,10 @@ const sensorNames = [
 const eraWidget = new EraWidget();
 
 eraWidget.init({
-    element: document.body,
-    mobileHeight: window.innerHeight * 2
+    element: document.getElementById("dashboard"),
+    mobileHeight: 2000
 });
+
 
 const sensorCount = sensorNames.length;
 const sensorConfigs = [];
