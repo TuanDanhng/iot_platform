@@ -140,7 +140,9 @@ for (let i = 0; i < sensorCount; i++) {
 
 eraWidget.init({
     mobileHight: 500,
+    ElementId: 'dashboard',
 });
+
 eraWidget.onConfiguration(config => {
     config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
         sensorConfigs[idx] = cfg;
