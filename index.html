@@ -125,7 +125,8 @@ const sensorNames = [
 const eraWidget = new EraWidget();
 
 eraWidget.init({
-    mobileHeight: 2000
+    element: document.getElementById("dashboard"), // widget chỉ nằm trong dashboard
+    mobileHeight: 5000 // chiều cao hiển thị trong app ERA
 });
 
 
