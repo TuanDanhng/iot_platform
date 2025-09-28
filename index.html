@@ -121,6 +121,14 @@ const sensorNames = [
     "khí nén - air4",
     "khí nén - air7"
 ];
+const sensorUnits = [
+    "%",    // oxy bồn 1
+    "%",    // oxy bồn 2
+    "BAR",  // OXY
+    "mmHg", // khí hút-VAC
+    "BAR",  // khí nén - air4
+    "BAR"   // khí nén - air7
+];
 
 const eraWidget = new EraWidget();
 const sensorCount = sensorNames.length;
@@ -157,7 +165,8 @@ eraWidget.init({
 
             // Cập nhật UI
             const cell = document.getElementById('sensorCell'+idx);
-            cell.querySelector('p').innerText = val.toFixed(2);
+            cell.querySelector('p').innerText = `${val.toFixed(2)} ${sensorUnits[idx]}`;
+
 
             // Lưu dữ liệu vào buffer để hiển thị chart lịch sử
             const t = (new Date()).getTime();
