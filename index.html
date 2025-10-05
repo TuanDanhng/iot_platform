@@ -149,8 +149,26 @@ for (let i = 0; i < sensorCount; i++) {
     cell.className = 'cell';
     cell.id = 'sensorCell' + i;
     cell.innerHTML = `<h3>${sensorNames[i]}</h3><p>0</p>`;
+
+    // 🎨 Gán màu nền cho từng loại
+    const name = sensorNames[i].toUpperCase();
+    if (name.includes("BỒN OXY 1")) {
+        cell.style.backgroundColor = "white"; // BỒN OXY 1
+    } else if (name.includes("BỒN OXY 2")) {
+        cell.style.backgroundColor = "white"; // BỒN OXY 2
+    } else if (name === "OXY") {
+        cell.style.backgroundColor = "#00FF00"; // Xanh lá
+    } else if (name.includes("VAC")) {
+        cell.style.backgroundColor = "#FFD700"; // Vàng
+    } else if (name.includes("AIR4") || name.includes("AIR7")) {
+        cell.style.backgroundColor = "#000000"; // Đen
+        cell.style.color = "white"; // chữ trắng cho dễ đọc
+    }
+
     dashboard.appendChild(cell);
     cell.addEventListener('click', () => openChart(i));
+}
+
 }
 
 
