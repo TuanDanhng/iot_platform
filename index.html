@@ -42,6 +42,7 @@ h2 { text-align: center; margin-top: 20px; color: red; font-weight: bold; } /* T
             <label for="endTime">Đến:</label>
             <input type="datetime-local" id="endTime">
             <button id="loadHistory">Xem Lịch Sử</button>
+            <button id="realtimeView" style="background-color: #007bff; color: white;">Quay lại Realtime</button>
             <button id="exportChart">Export to Excel</button>
         </div>
         <div id="chartContainer"></div>
@@ -72,10 +73,9 @@ for (let i = 0; i < sensorCount; i++) {
 }
 
 eraWidget.init({
-    eraOrigin: 'https://app.e-ra.io',
+    eraOrigin: 'https://app.e-ra.io', // Đảm bảo URL này là chính xác
     mobileHeight: 500,
     onConfiguration: (config) => {
-        // Lưu trữ cấu hình
         config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => { 
             sensorConfigs[idx] = cfg; 
         });
@@ -92,15 +92,14 @@ eraWidget.init({
     }
 });
 
-// *** THÊM LOGIC LẮNG NGHE SỰ KIỆN LỊCH SỬ ***
+// Biến toàn cục để lưu thời gian lịch sử đang xem
 let currentFromTime = null;
 let currentToTime = null;
 
+// HÀM LẮNG NGHE VÀ HIỂN THỊ DỮ LIỆU LỊCH SỬ (sử dụng onHistoryValues)
 eraWidget.onHistoryValues = (historyDataArray) => {
-    // 1. Dừng loading
     if (chartInstance) chartInstance.hideLoading();
 
-    // 2. Tìm dữ liệu của sensor hiện tại (dựa trên id của config)
     const configId = sensorConfigs[currentSensor]?.id;
     if (!configId) return;
 
@@ -115,7 +114,7 @@ eraWidget.onHistoryValues = (historyDataArray) => {
             title: { 
                 text: `${sensorNames[currentSensor]} - Lịch sử (Từ ${formatDateTimeLocal(new Date(currentFromTime))} đến ${formatDateTimeLocal(new Date(currentToTime))})` 
             },
-            series: [{ name: 'History Value', data: formattedData }]
+            series: [{ name: 'Giá trị Lịch sử', data: formattedData, type: 'areaspline' }]
         });
         if (formattedData.length === 0) { 
             alert("Không có dữ liệu trong khoảng thời gian đã chọn."); 
@@ -123,7 +122,7 @@ eraWidget.onHistoryValues = (historyDataArray) => {
 
     } else {
         alert("Không có dữ liệu lịch sử cho cảm biến này.");
-        chartInstance.update({ series: [{ name: 'History Value', data: [] }] });
+        chartInstance.update({ series: [{ name: 'Giá trị Lịch sử', data: [] }] });
     }
 };
 
@@ -134,10 +133,12 @@ const modal = document.getElementById('chartModal');
 const chartContainer = document.getElementById('chartContainer');
 const startTimeInput = document.getElementById('startTime');
 const endTimeInput = document.getElementById('endTime');
+// Lấy tham chiếu đến nút Realtime mới
+const realtimeButton = document.getElementById('realtimeView'); 
 
 Highcharts.setOptions({ time: { timezoneOffset: -7 * 60 } });
 
-// Hàm định dạng thời gian
+// Hàm định dạng thời gian cho input type="datetime-local"
 function formatDateTimeLocal(date) {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -147,45 +148,58 @@ function formatDateTimeLocal(date) {
     return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
+// HÀM KHỞI TẠO BIỂU ĐỒ REALTIME
+function startRealtimeChart() {
+    // Nếu có interval cũ, dọn dẹp
+    if (chartInterval) clearInterval(chartInterval); 
+
+    // Cập nhật biểu đồ để chuyển sang chế độ realtime (làm sạch dữ liệu cũ)
+    chartInstance.update({
+        title: { text: `${sensorNames[currentSensor]} - Realtime` },
+        series: [{ name: 'Giá trị Realtime', data: [], lineWidth: 2, fillOpacity: 0.3, type: 'areaspline' }]
+    });
+    
+    // Ẩn nút "Quay lại Realtime" khi đang ở chế độ Realtime
+    if (realtimeButton) realtimeButton.style.display = 'none';
+
+    // Khởi động lại cập nhật realtime
+    chartInterval = setInterval(() => {
+        if (chartInstance && chartInstance.series.length > 0) {
+            const x = (new Date()).getTime();
+            const y = sensorValues[currentSensor];
+            // Giữ tối đa 300 điểm dữ liệu trên biểu đồ realtime
+            chartInstance.series[0].addPoint([x, y], true, chartInstance.series[0].data.length > 300);
+        }
+    }, 1000);
+}
+
 function openChart(sensorIndex) {
     currentSensor = sensorIndex;
     modal.classList.add('show');
-    if (chartInterval) clearInterval(chartInterval);
+    if (chartInterval) clearInterval(chartInterval); // Dừng interval cũ
+
+    // Khởi tạo biểu đồ Highcharts
     if (chartInstance) chartInstance.destroy();
+    chartInstance = Highcharts.chart(chartContainer, {
+        chart: { type: 'areaspline' },
+        title: { text: `${sensorNames[currentSensor]} - Đang tải...` },
+        xAxis: { type: 'datetime' },
+        yAxis: { title: { text: `Value (${sensorUnits[currentSensor]})` } },
+        tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: `{point.y:.2f} ${sensorUnits[currentSensor]}` },
+        series: [{ name: 'Giá trị', data: [], lineWidth: 2, fillOpacity: 0.3 }]
+    });
 
     // 1. Thiết lập khoảng thời gian mặc định là 6 tháng
     const now = new Date();
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(now.getMonth() - 6); 
 
-    // Cập nhật biến toàn cục cho hàm onHistoryValues
-    currentToTime = now.getTime();
-    currentFromTime = sixMonthsAgo.getTime();
-
     // Điền giá trị mặc định vào input
     endTimeInput.value = formatDateTimeLocal(now);
     startTimeInput.value = formatDateTimeLocal(sixMonthsAgo);
 
-    chartInstance = Highcharts.chart(chartContainer, {
-        chart: { type: 'areaspline' },
-        title: { text: `${sensorNames[currentSensor]} - Realtime` },
-        xAxis: { type: 'datetime' },
-        yAxis: { title: { text: `Value (${sensorUnits[currentSensor]})` } },
-        tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: `{point.y:.2f} ${sensorUnits[currentSensor]}` },
-        series: [{ name: 'Value', data: [], lineWidth: 2, fillOpacity: 0.3 }]
-    });
-
-    // Tự động tải lịch sử 6 tháng khi mở
-    requestHistoryData(currentFromTime, currentToTime);
-    
-    // Khởi động lại cập nhật realtime sau khi tải lịch sử
-    chartInterval = setInterval(() => {
-        if (chartInstance && chartInstance.series) {
-            const x = (new Date()).getTime();
-            const y = sensorValues[currentSensor];
-            chartInstance.series[0].addPoint([x, y], true, chartInstance.series[0].data.length > 300);
-        }
-    }, 1000);
+    // BẮT ĐẦU VỚI CHẾ ĐỘ LỊCH SỬ (6 tháng)
+    requestHistoryData(sixMonthsAgo.getTime(), now.getTime());
 }
 
 document.getElementById('closeChart').addEventListener('click', () => {
@@ -193,7 +207,7 @@ document.getElementById('closeChart').addEventListener('click', () => {
     if (chartInterval) clearInterval(chartInterval);
 });
 
-// *** SỬ DỤNG requestHistories() để gửi yêu cầu ***
+// *** HÀM GỬI YÊU CẦU LỊCH SỬ (sử dụng requestHistories) ***
 function requestHistoryData(from, to) {
     if (chartInterval) clearInterval(chartInterval); // Tạm dừng realtime khi xem lịch sử
     
@@ -202,6 +216,9 @@ function requestHistoryData(from, to) {
     // Cập nhật biến toàn cục
     currentFromTime = from;
     currentToTime = to;
+    
+    // Hiển thị nút "Quay lại Realtime"
+    if (realtimeButton) realtimeButton.style.display = 'inline-block';
 
     try {
         const configId = sensorConfigs[currentSensor]?.id;
@@ -217,6 +234,7 @@ function requestHistoryData(from, to) {
     }
 }
 
+// Bắt sự kiện nhấn nút "Xem Lịch Sử"
 document.getElementById('loadHistory').addEventListener('click', () => {
     const startTime = startTimeInput.value;
     const endTime = endTimeInput.value;
@@ -227,6 +245,15 @@ document.getElementById('loadHistory').addEventListener('click', () => {
     
     requestHistoryData(from, to);
 });
+
+// Bắt sự kiện nhấn nút "Quay lại Realtime"
+if (realtimeButton) {
+    realtimeButton.addEventListener('click', () => {
+        if (chartInstance) {
+            startRealtimeChart();
+        }
+    });
+}
 
 document.getElementById('exportChart').addEventListener('click', () => {
     if (!chartInstance || !chartInstance.series[0] || chartInstance.series[0].data.length === 0) {
