@@ -211,7 +211,7 @@ document.getElementById('closeChart').addEventListener('click', () => {
 function requestHistoryData(from, to) {
     if (chartInterval) clearInterval(chartInterval); // Tạm dừng realtime khi xem lịch sử
     
-    if (chartInstance) chartInstance.showLoading('Đang tải dữ liệu lịch sử...');
+    // if (chartInstance) chartInstance.showLoading('Đang tải dữ liệu lịch sử...');
     
     // Cập nhật biến toàn cục
     currentFromTime = from;
