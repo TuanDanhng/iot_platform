@@ -31,8 +31,6 @@ h2 { text-align: center; margin-top: 20px; color: red; font-weight: bold; } /* T
 </head>
 <body>
 
-<h2>PHIÊN BẢN MỚI - TEST</h2>
-
 <div class="dashboard" id="dashboard"></div>
 
 <div id="chartModal">
@@ -65,7 +63,7 @@ for (let i = 0; i < sensorCount; i++) {
     cell.id = 'sensorCell' + i;
     cell.innerHTML = `<h3>${sensorNames[i]}</h3><p>0 ${sensorUnits[i]}</p>`;
     const name = sensorNames[i].toUpperCase();
-    if (name.includes("BỒN OXY")) { cell.style.backgroundColor = "white"; }
+    if (name.includes("OXY BỒN")) { cell.style.backgroundColor = "white"; }
     else if (name === "OXY") { cell.style.backgroundColor = "#00FF00"; }
     else if (name.includes("VAC")) { cell.style.backgroundColor = "#FFD700"; }
     else if (name.includes("AIR")) { cell.style.backgroundColor = "#000000"; cell.style.color = "white"; }
@@ -76,7 +74,10 @@ for (let i = 0; i < sensorCount; i++) {
 eraWidget.init({
     mobileHeight: 500,
     onConfiguration: (config) => {
-        config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => { sensorConfigs[idx] = cfg; });
+        // Giả sử rằng Era Widget cung cấp một danh sách config với 'id'
+        config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => { 
+            sensorConfigs[idx] = cfg; 
+        });
         eraWidget.ready();
     },
     onValues: (values) => {
@@ -95,14 +96,37 @@ let currentSensor = 0;
 let chartInterval = null;
 const modal = document.getElementById('chartModal');
 const chartContainer = document.getElementById('chartContainer');
+const startTimeInput = document.getElementById('startTime');
+const endTimeInput = document.getElementById('endTime');
 
 Highcharts.setOptions({ time: { timezoneOffset: -7 * 60 } });
+
+// Hàm định dạng thời gian thành chuỗi 'YYYY-MM-DDTHH:mm' cho input type="datetime-local"
+function formatDateTimeLocal(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hour = String(date.getHours()).padStart(2, '0');
+    const minute = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hour}:${minute}`;
+}
 
 function openChart(sensorIndex) {
     currentSensor = sensorIndex;
     modal.classList.add('show');
     if (chartInterval) clearInterval(chartInterval);
     if (chartInstance) chartInstance.destroy();
+
+    // 1. Thiết lập khoảng thời gian mặc định là 6 tháng
+    const now = new Date();
+    const sixMonthsAgo = new Date();
+    // Giảm 6 tháng
+    sixMonthsAgo.setMonth(now.getMonth() - 6); 
+
+    // Điền giá trị mặc định vào input
+    endTimeInput.value = formatDateTimeLocal(now);
+    startTimeInput.value = formatDateTimeLocal(sixMonthsAgo);
+
     chartInstance = Highcharts.chart(chartContainer, {
         chart: { type: 'areaspline' },
         title: { text: `${sensorNames[currentSensor]} - Realtime` },
@@ -111,6 +135,11 @@ function openChart(sensorIndex) {
         tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: `{point.y:.2f} ${sensorUnits[currentSensor]}` },
         series: [{ name: 'Value', data: [], lineWidth: 2, fillOpacity: 0.3 }]
     });
+
+    // Tự động tải lịch sử 6 tháng khi mở
+    loadHistoryData(sixMonthsAgo.getTime(), now.getTime());
+    
+    // Khởi động lại cập nhật realtime sau khi tải lịch sử
     chartInterval = setInterval(() => {
         if (chartInstance && chartInstance.series) {
             const x = (new Date()).getTime();
@@ -125,31 +154,52 @@ document.getElementById('closeChart').addEventListener('click', () => {
     if (chartInterval) clearInterval(chartInterval);
 });
 
-document.getElementById('loadHistory').addEventListener('click', async () => {
-    const startTime = document.getElementById('startTime').value;
-    const endTime = document.getElementById('endTime').value;
-    if (!startTime || !endTime) return alert("Vui lòng chọn cả thời gian bắt đầu và kết thúc.");
-    const from = new Date(startTime).getTime();
-    const to = new Date(endTime).getTime();
-    if (from >= to) return alert("Thời gian bắt đầu phải trước thời gian kết thúc.");
-    if (chartInterval) clearInterval(chartInterval);
+async function loadHistoryData(from, to) {
+    if (chartInterval) clearInterval(chartInterval); // Tạm dừng realtime khi xem lịch sử
+    
     chartInstance.showLoading('Đang tải dữ liệu lịch sử...');
     try {
         const configId = sensorConfigs[currentSensor]?.id;
         if (!configId) throw new Error("Không tìm thấy cấu hình cảm biến.");
-        const historyData = await eraWidget.getHistory({ id: configId, from, to });
-        const formattedData = historyData.map(point => [point.ts, point.val]);
+
+        // *** FIX LỖI eraWidget.getHistory IS NOT A FUNCTION ***
+        // Era Widget không có hàm getHistory. Thay vào đó, sử dụng hàm loadHistory 
+        // với tham số là config của sensor đang xem.
+        const historyData = await eraWidget.loadHistory({
+            ids: [configId], // loadHistory nhận mảng id
+            from: from, 
+            to: to 
+        });
+        // ----------------------------------------------------
+
+        // Dữ liệu trả về từ loadHistory có thể ở dạng { [id]: [ {ts, val}, ... ] }
+        const sensorData = historyData[configId] || [];
+        const formattedData = sensorData.map(point => [point.ts, point.val]);
+        
         chartInstance.hideLoading();
         chartInstance.update({
-            title: { text: `${sensorNames[currentSensor]} - Lịch sử` },
+            title: { text: `${sensorNames[currentSensor]} - Lịch sử (Từ ${formatDateTimeLocal(new Date(from))} đến ${formatDateTimeLocal(new Date(to))})` },
             series: [{ name: 'History Value', data: formattedData }]
         });
-        if (formattedData.length === 0) { alert("Không có dữ liệu trong khoảng thời gian đã chọn."); }
+        if (formattedData.length === 0) { 
+            alert("Không có dữ liệu trong khoảng thời gian đã chọn."); 
+        }
     } catch (error) {
         chartInstance.hideLoading();
         alert("Không thể tải dữ liệu lịch sử. Vui lòng kiểm tra lỗi trong Console (F12).");
         console.error("Lỗi khi lấy dữ liệu lịch sử:", error);
     }
+}
+
+document.getElementById('loadHistory').addEventListener('click', async () => {
+    const startTime = startTimeInput.value;
+    const endTime = endTimeInput.value;
+    if (!startTime || !endTime) return alert("Vui lòng chọn cả thời gian bắt đầu và kết thúc.");
+    const from = new Date(startTime).getTime();
+    const to = new Date(endTime).getTime();
+    if (from >= to) return alert("Thời gian bắt đầu phải trước thời gian kết thúc.");
+    
+    loadHistoryData(from, to);
 });
 
 document.getElementById('exportChart').addEventListener('click', () => {
