@@ -102,16 +102,13 @@ h2 { text-align: center; margin-top: 20px; }
     <div id="chartContent">
         <span id="closeChart">✖</span>
         <div class="controls">
-            <label><input type="radio" name="mode" value="realtime" checked> Realtime</label>
-            <label><input type="radio" name="mode" value="history"> History</label>
-            <label for="timeRange">Show last:</label>
-            <select id="timeRange">
-                <option value="60">1 min</option>
-                <option value="300">5 min</option>
-                <option value="900">15 min</option>
-                <option value="1800" selected>30 min</option>
-                <option value="3600">1 hour</option>
-            </select>
+            <label for="startTime">Từ:</label>
+            <input type="datetime-local" id="startTime">
+
+            <label for="endTime">Đến:</label>
+            <input type="datetime-local" id="endTime">
+
+            <button id="loadHistory">Xem Lịch Sử</button>
             <button id="exportChart">Export to Excel</button>
         </div>
         <div id="chartContainer"></div>
@@ -121,191 +118,185 @@ h2 { text-align: center; margin-top: 20px; }
 <script>
 // Tên sensor
 const sensorNames = [
-    "OXY BỒN 1",
-    "OXY BỒN 2",
-    "OXY",
-    "KHÍ NÉN - AIR4",
-    "KHÍ HÚT - VAC",
-    "KHÍ NÉN - AIR7"
+    "OXY BỒN 1", "OXY BỒN 2", "OXY",
+    "KHÍ NÉN - AIR4", "KHÍ HÚT - VAC", "KHÍ NÉN - AIR7"
 ];
-const sensorUnits = [
-    "%",    // oxy bồn 1
-    "%",    // oxy bồn 2
-    "BAR",  // OXY
-    "BAR",  // khí nén - air4
-    "mmHg", // khí hút-VAC
-    "BAR"   // khí nén - air7
-];
+const sensorUnits = ["%", "%", "BAR", "BAR", "mmHg", "BAR"];
 
 const eraWidget = new EraWidget();
 const sensorCount = sensorNames.length;
 const sensorConfigs = [];
 const sensorValues = Array(sensorCount).fill(0);
-const sensorBuffers = Array.from({length: sensorCount}, () => []);
+
+// Không cần sensorBuffers nữa vì ta sẽ gọi API để lấy lịch sử
+// const sensorBuffers = Array.from({length: sensorCount}, () => []);
 
 const dashboard = document.getElementById('dashboard');
 for (let i = 0; i < sensorCount; i++) {
     const cell = document.createElement('div');
     cell.className = 'cell';
     cell.id = 'sensorCell' + i;
-    cell.innerHTML = `<h3>${sensorNames[i]}</h3><p>0</p>`;
+    cell.innerHTML = `<h3>${sensorNames[i]}</h3><p>0 ${sensorUnits[i]}</p>`;
 
-    // 🎨 Gán màu nền cho từng loại
     const name = sensorNames[i].toUpperCase();
-    if (name.includes("BỒN OXY 1")) {
-        cell.style.backgroundColor = "white"; // BỒN OXY 1
-    } else if (name.includes("BỒN OXY 2")) {
-        cell.style.backgroundColor = "white"; // BỒN OXY 2
-    } else if (name === "OXY") {
-        cell.style.backgroundColor = "#00FF00"; // Xanh lá
-    } else if (name.includes("VAC")) {
-        cell.style.backgroundColor = "#FFD700"; // Vàng
-    } else if (name.includes("AIR4") || name.includes("AIR7")) {
-        cell.style.backgroundColor = "#000000"; // Đen
-        cell.style.color = "white"; // chữ trắng cho dễ đọc
+    if (name.includes("BỒN OXY 1")) cell.style.backgroundColor = "white";
+    else if (name.includes("BỒN OXY 2")) cell.style.backgroundColor = "white";
+    else if (name === "OXY") cell.style.backgroundColor = "#00FF00";
+    else if (name.includes("VAC")) cell.style.backgroundColor = "#FFD700";
+    else if (name.includes("AIR4") || name.includes("AIR7")) {
+        cell.style.backgroundColor = "#000000";
+        cell.style.color = "white";
     }
 
     dashboard.appendChild(cell);
     cell.addEventListener('click', () => openChart(i));
 }
 
-
-
-
-
 eraWidget.init({
-    mobileHeight: 500, // Thiết lập chiều cao hiển thị trên mobile app E-Ra (mặc định 300px)
-
-    // Hàm callback được gọi khi có cấu hình được nhận từ server
+    mobileHeight: 500,
     onConfiguration: (config) => {
         config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
             sensorConfigs[idx] = cfg;
         });
+        // Gọi ready() sau khi đã có config để đảm bảo widget hoạt động
+        eraWidget.ready();
     },
-
-    // Hàm callback được gọi khi nhận giá trị mới từ server
     onValues: (values) => {
         sensorConfigs.forEach((cfg, idx) => {
             if (!cfg) return;
             const val = values[cfg.id]?.value ?? 0;
             sensorValues[idx] = val;
-
-            // Cập nhật UI
-            const cell = document.getElementById('sensorCell'+idx);
+            const cell = document.getElementById('sensorCell' + idx);
             cell.querySelector('p').innerText = `${val.toFixed(2)} ${sensorUnits[idx]}`;
-
-
-            // Lưu dữ liệu vào buffer để hiển thị chart lịch sử
-            const t = (new Date()).getTime();
-            sensorBuffers[idx].push([t, val]);
-            const maxBuffer = 3600*1000;
-            while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
-                sensorBuffers[idx].shift();
-            }
         });
     }
 });
 
-// eraWidget.onConfiguration(config => {
-//     config.realtime_configs.slice(0, sensorCount).forEach((cfg, idx) => {
-//         sensorConfigs[idx] = cfg;
-//     });
-// });
-
-// eraWidget.onValues(values => {
-//     sensorConfigs.forEach((cfg, idx) => {
-//         if (!cfg) return;
-//         const val = values[cfg.id]?.value ?? 0;
-//         sensorValues[idx] = val;
-//         const cell = document.getElementById('sensorCell'+idx);
-//         cell.querySelector('p').innerText = val.toFixed(2);
-
-//         const t = (new Date()).getTime();
-//         sensorBuffers[idx].push([t, val]);
-//         const maxBuffer = 3600*1000;
-//         while (sensorBuffers[idx].length && sensorBuffers[idx][0][0] < t - maxBuffer) {
-//             sensorBuffers[idx].shift();
-//         }
-//     });
-// });
-
-// eraWidget.ready();
-
-
-
-
-
-// Modal chart
+// --- PHẦN BIỂU ĐỒ ĐÃ CẬP NHẬT ---
 let chartInstance = null;
 let currentSensor = 0;
 let chartInterval = null;
 const modal = document.getElementById('chartModal');
 const chartContainer = document.getElementById('chartContainer');
 
-document.getElementById('closeChart').addEventListener('click', () => {
-    modal.classList.remove('show');
-    clearInterval(chartInterval);
+// Thiết lập múi giờ VN (GMT+7) cho Highcharts
+Highcharts.setOptions({
+    time: {
+        timezoneOffset: -7 * 60
+    }
 });
 
+// Mở biểu đồ và mặc định chạy chế độ Realtime
 function openChart(sensorIndex) {
     currentSensor = sensorIndex;
     modal.classList.add('show');
-    renderChart();
-}
-
-const radios = document.querySelectorAll('input[name="mode"]');
-radios.forEach(r => r.addEventListener('change', renderChart));
-document.getElementById('timeRange').addEventListener('change', renderChart);
-
-function renderChart() {
-    const mode = document.querySelector('input[name="mode"]:checked').value;
-    const rangeSec = parseInt(document.getElementById('timeRange').value);
-    const now = (new Date()).getTime();
-
+    
+    // Hủy interval cũ nếu có
+    if (chartInterval) clearInterval(chartInterval);
     if (chartInstance) chartInstance.destroy();
-    clearInterval(chartInterval);
 
-    // Thiết lập múi giờ VN (GMT+7)
-    Highcharts.setOptions({
-        time: {
-            timezoneOffset: -7 * 60
-        }
+    // Vẽ biểu đồ realtime
+    chartInstance = Highcharts.chart(chartContainer, {
+        chart: { type: 'areaspline' },
+        title: { text: `${sensorNames[currentSensor]} - Realtime` },
+        xAxis: { type: 'datetime' },
+        yAxis: { title: { text: `Value (${sensorUnits[currentSensor]})` } },
+        tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: `{point.y:.2f} ${sensorUnits[currentSensor]}` },
+        series: [{ name: 'Value', data: [], lineWidth: 2, fillOpacity: 0.3 }]
     });
 
-    if (mode === 'realtime') {
-        chartInstance = Highcharts.chart(chartContainer, {
-            chart: { type: 'areaspline' },
-            title: { text: `${sensorNames[currentSensor]} Realtime` },
-            xAxis: { type: 'datetime' },
-            yAxis: { title: { text: 'Value' } },
-            tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
-            series: [{ name: 'Value', data: [] , lineWidth: 2, fillOpacity: 0.3 }]
-        });
-
-        chartInterval = setInterval(() => {
+    // Bắt đầu cập nhật realtime
+    chartInterval = setInterval(() => {
+        if (chartInstance && chartInstance.series) { // Kiểm tra chart còn tồn tại
             const x = (new Date()).getTime();
             const y = sensorValues[currentSensor];
-            chartInstance.series[0].addPoint([x, y], true, chartInstance.series[0].data.length>1800);
-        }, 1000);
-    } else {
-        const data = sensorBuffers[currentSensor].filter(p => p[0] >= now - rangeSec*1000);
-        chartInstance = Highcharts.chart(chartContainer, {
-            chart: { type: 'areaspline' },
-            title: { text: `${sensorNames[currentSensor]} History` },
-            xAxis: { type: 'datetime' },
-            yAxis: { title: { text: 'Value' } },
-            tooltip: { xDateFormat: '%Y-%m-%d %H:%M:%S', pointFormat: '{point.y:.2f}' },
-            series: [{ name: 'Value', data, lineWidth: 2, fillOpacity: 0.3 }]
-        });
-    }
+            chartInstance.series[0].addPoint([x, y], true, chartInstance.series[0].data.length > 300);
+        }
+    }, 1000);
 }
 
-// Export dữ liệu chart
+// Đóng biểu đồ
+document.getElementById('closeChart').addEventListener('click', () => {
+    modal.classList.remove('show');
+    // Dừng cập nhật realtime khi đóng
+    if (chartInterval) clearInterval(chartInterval);
+});
+
+// Xử lý sự kiện bấm nút "Xem Lịch Sử"
+document.getElementById('loadHistory').addEventListener('click', async () => {
+    const startTime = document.getElementById('startTime').value;
+    const endTime = document.getElementById('endTime').value;
+
+    if (!startTime || !endTime) {
+        alert("Vui lòng chọn cả thời gian bắt đầu và kết thúc.");
+        return;
+    }
+
+    // Chuyển đổi sang timestamp (milliseconds)
+    const from = new Date(startTime).getTime();
+    const to = new Date(endTime).getTime();
+
+    if (from >= to) {
+        alert("Thời gian bắt đầu phải trước thời gian kết thúc.");
+        return;
+    }
+
+    // Dừng chế độ realtime
+    if (chartInterval) clearInterval(chartInterval);
+    
+    // Hiển thị trạng thái đang tải
+    chartInstance.showLoading('Đang tải dữ liệu lịch sử...');
+
+    try {
+        // Lấy config ID của sensor hiện tại
+        const configId = sensorConfigs[currentSensor].id;
+
+        // Gọi API để lấy dữ liệu lịch sử
+        const historyData = await eraWidget.getHistory({
+            id: configId,
+            from: from,
+            to: to,
+        });
+
+        // Xử lý và vẽ lại biểu đồ với dữ liệu lịch sử
+        // Dữ liệu trả về có dạng { ts: timestamp, val: value }
+        const formattedData = historyData.map(point => [point.ts, point.val]);
+
+        chartInstance.hideLoading(); // Ẩn trạng thái tải
+        chartInstance.update({
+            title: { text: `${sensorNames[currentSensor]} - Lịch sử` },
+            series: [{
+                name: 'History Value',
+                data: formattedData
+            }]
+        });
+
+    } catch (error) {
+        chartInstance.hideLoading();
+        alert("Không thể tải dữ liệu lịch sử. Vui lòng thử lại.");
+        console.error("Lỗi khi lấy dữ liệu lịch sử:", error);
+    }
+});
+
+// Chức năng Export (Cần điều chỉnh để export đúng dữ liệu đang hiển thị)
 document.getElementById('exportChart').addEventListener('click', () => {
-    const ws = XLSX.utils.json_to_sheet(sensorBuffers[currentSensor].map(p => ({
-        Time: (new Date(p[0])).toLocaleString("vi-VN"),
-        Value: p[1]
-    })));
+    if (!chartInstance || !chartInstance.series[0]) {
+        alert("Chưa có dữ liệu để export.");
+        return;
+    }
+
+    // Lấy dữ liệu trực tiếp từ series của biểu đồ
+    const dataToExport = chartInstance.series[0].data.map(point => ({
+        Time: new Date(point.x).toLocaleString("vi-VN", { timeZone: 'Asia/Ho_Chi_Minh' }),
+        Value: point.y
+    }));
+
+    if (dataToExport.length === 0) {
+        alert("Không có dữ liệu trên biểu đồ để export.");
+        return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(dataToExport);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, `${sensorNames[currentSensor]}`);
     XLSX.writeFile(wb, `${sensorNames[currentSensor]}_data.xlsx`);
