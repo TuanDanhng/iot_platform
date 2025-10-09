@@ -170,7 +170,7 @@ document.getElementById('loadHistory').addEventListener('click', async () => {
 
     } catch (error) {
         chartInstance.hideLoading();
-        alert("Không thể tải dữ liệu lịch sử. Vui lòng kiểm tra lại (F12 -> Console).");
+        alert("Không thể tải dữ liệu lịch sử. Vui lòng kiểm tra lỗi trong Console (F12).");
         console.error("Lỗi khi lấy dữ liệu lịch sử:", error);
     }
 });
